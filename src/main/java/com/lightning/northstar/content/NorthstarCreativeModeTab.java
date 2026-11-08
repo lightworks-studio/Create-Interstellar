@@ -31,23 +31,23 @@ public class NorthstarCreativeModeTab {
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> ITEMS = CREATIVE_TABS
             .register("items", () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.northstar.items"))
-                    .icon(() -> new ItemStack(NorthstarItems.MARTIAN_STEEL_INGOT.get()))
+                    .icon(() -> new ItemStack(NorthstarItems.TITANIUM_INGOT.get()))
                     .displayItems(createItemDisplay(NorthstarCreativeModeTab.ITEMS))
                     .build());
 
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> BLOCKS = CREATIVE_TABS
             .register("blocks", () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.northstar.blocks"))
-                    .icon(() -> new ItemStack(NorthstarBlocks.MARTIAN_STEEL_BLOCK.get()))
+                    .icon(() -> new ItemStack(NorthstarBlocks.TELESCOPE.get()))
                     .displayItems(createItemDisplay(NorthstarCreativeModeTab.BLOCKS))
                     .build());
 
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TECH = CREATIVE_TABS
-            .register("tech", () -> CreativeModeTab.builder()
-                    .title(Component.translatable("itemGroup.northstar.tech"))
-                    .icon(() -> new ItemStack(NorthstarBlocks.TELESCOPE.get()))
-                    .displayItems(createItemDisplay(NorthstarCreativeModeTab.TECH))
-                    .build());
+//    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> TECH = CREATIVE_TABS
+//            .register("tech", () -> CreativeModeTab.builder()
+//                    .title(Component.translatable("itemGroup.northstar.tech"))
+//                    .icon(() -> new ItemStack(NorthstarBlocks.TELESCOPE.get()))
+//                    .displayItems(createItemDisplay(NorthstarCreativeModeTab.TECH))
+//                    .build());
 
     private static CreativeModeTab.DisplayItemsGenerator createItemDisplay(DeferredHolder<CreativeModeTab, CreativeModeTab> tab) {
         return (parameters, output) -> {

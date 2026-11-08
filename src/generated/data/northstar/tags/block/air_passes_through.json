@@ -1,12 +1,12 @@
 {
   "values": [
+    "northstar:rocket_station",
+    "northstar:auto_lander",
+    "northstar:computer_rack",
     "northstar:martian_steel_grate",
     "northstar:titanium_grate",
     "northstar:tungsten_grate",
     "northstar:vent",
-    "northstar:rocket_station",
-    "northstar:auto_lander",
-    "northstar:computer_rack",
     "#northstar:blocks_air",
     "minecraft:oak_door",
     "minecraft:oak_trapdoor",

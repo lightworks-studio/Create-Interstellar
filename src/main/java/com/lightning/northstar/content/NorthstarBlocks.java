@@ -99,9 +99,345 @@ import static net.minecraft.world.level.block.Blocks.*;
 @SuppressWarnings("Convert2MethodRef")
 public class NorthstarBlocks {
 
+
+
     static {
         REGISTRATE.setCreativeTab(NorthstarCreativeModeTab.BLOCKS);
     }
+
+    public static final BlockEntry<TelescopeBlock> TELESCOPE = REGISTRATE
+            .block("telescope", TelescopeBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.mapColor(MapColor.COLOR_BROWN)
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .sound(SoundType.COPPER)
+                    .strength(8f, 8f)
+                    .noOcclusion())
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .item()
+            .model(NorthstarDataGenModels.itemGeneratedItem())
+            .build()
+            .register();
+
+    public static final BlockEntry<AstronomyTableBlock> ASTRONOMY_TABLE = REGISTRATE
+            .block("astronomy_table", AstronomyTableBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .sound(SoundType.WOOD))
+            .tag(BlockTags.MINEABLE_WITH_AXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<SpaceCogWheelBlock> IRON_COGWHEEL = REGISTRATE
+            .block("iron_cogwheel", SpaceCogWheelBlock::small)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.METAL))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 0))
+            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
+            .item(CogwheelBlockItem::new)
+            .build()
+            .register();
+
+    public static final BlockEntry<SpaceCogWheelBlock> IRON_LARGE_COGWHEEL = REGISTRATE
+            .block("iron_large_cogwheel", SpaceCogWheelBlock::large)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.METAL))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 0))
+            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
+            .lang("Large Iron Cogwheel")
+            .item(CogwheelBlockItem::new)
+            .build()
+            .register();
+
+    public static final BlockEntry<SolarPanelBlock> SOLAR_PANEL = REGISTRATE
+            .block("solar_panel", SolarPanelBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.mapColor(MapColor.CLAY)
+                    .noOcclusion())
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.CAPACITIES.register(b, () -> 128.0))
+            .onRegister(BlockStressValues.setGeneratorSpeed(SolarPanelBlockEntity.MAXIMUM_SPEED, true))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<CombustionEngineBlock> COMBUSTION_ENGINE = REGISTRATE
+            .block("combustion_engine", CombustionEngineBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(8, 8))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.CAPACITIES.register(b, () -> 256))
+            //.onRegister(BlockStressValues.setGeneratorSpeed(CombustionEngineBlock.getSpeedRange().getSecond(), true))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<CircuitEngraverBlock> CIRCUIT_ENGRAVER = REGISTRATE
+            .block("circuit_engraver", CircuitEngraverBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_BLACK)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
+            .item(AssemblyOperatorBlockItem::new)
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<ElectrolysisMachineBlock> ELECTROLYSIS_MACHINE = REGISTRATE
+            .block("electrolysis_machine", ElectrolysisMachineBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .sound(SoundType.NETHERITE_BLOCK).noOcclusion())
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<AtmosphericConcentratorBlock> ATMOSPHERIC_CONCENTRATOR = REGISTRATE
+            .block("atmospheric_concentrator", AtmosphericConcentratorBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(6, 6))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<OxygenFillerBlock> OXYGEN_FILLER = REGISTRATE
+            .block("oxygen_filler", OxygenFillerBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(6, 6))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new OxygenFillerMovingInteractionBehaviour()))
+            .onRegister(MovementBehaviour.movementBehaviour(new OxygenFillerMovementBehaviour()))
+            .item()
+            .model((c, p) -> p.blockItem(c::get))
+            .build()
+            .register();
+
+    public static final BlockEntry<OxygenSealerBlock> OXYGEN_SEALER = REGISTRATE
+            .block("oxygen_sealer", OxygenSealerBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(8, 8))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new OxygenSealerMovingInteractionBehaviour()))
+            .onRegister(MovementBehaviour.movementBehaviour(new OxygenSealerMovementBehaviour()))
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<OxygenDetectorBlock> OXYGEN_DETECTOR = REGISTRATE
+            .block("oxygen_detector", OxygenDetectorBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<TemperatureRegulatorBlock> TEMPERATURE_REGULATOR = REGISTRATE
+            .block("temperature_regulator", TemperatureRegulatorBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(8, 8))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
+            .onRegister(MovementBehaviour.movementBehaviour(new TemperatureRegulatorMovementBehaviour()))
+            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new TemperatureRegulatorMovingInteractionBehaviour()))
+            .transform(DisplaySource.displaySource(NorthstarDisplaySources.TEMPERATURE))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<LargeFanBlock> LARGE_FAN = REGISTRATE
+            .block("large_fan", LargeFanBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never)
+                    .strength(8, 8))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
+            .item()
+            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/large_fan/block_single")))
+            .build()
+            .register();
+
+    public static final BlockEntry<IceBoxBlock> ICE_BOX = REGISTRATE
+            .block("ice_box", IceBoxBlock::new)
+            .initialProperties(SharedProperties::stone)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(MovementBehaviour.movementBehaviour(new BasinMovementBehaviour()))
+            .transform(DisplaySource.displaySource(NorthstarDisplaySources.TEMPERATURE))
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<RocketStationBlock> ROCKET_STATION = REGISTRATE
+            .block("rocket_station", RocketStationBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .simpleItem()
+            .onRegister(MovementBehaviour.movementBehaviour(new RocketStationBlockMovementBehaviour()))
+            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new RocketStationBlockMovingInteraction()))
+            .register();
+
+    public static final BlockEntry<RocketControlsBlock> ROCKET_CONTROLS = REGISTRATE
+            .block("rocket_controls", RocketControlsBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(MovementBehaviour.movementBehaviour(new RocketControlsMovementBehaviour()))
+            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new RocketControlsInteractionBehaviour()))
+            .item()
+            .transform(customItemModel())
+            .register();
+
+    public static final BlockEntry<RocketWaypointBlock> ROCKET_WAYPOINT = REGISTRATE
+            .block("rocket_waypoint", RocketWaypointBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .item()
+            .model((c, p) -> p.blockItem(c::get, "_inactive"))
+            .build()
+            .register();
+
+    public static final BlockEntry<AutoLanderBlock> AUTO_LANDER = REGISTRATE
+            .block("auto_lander", AutoLanderBlock::new)
+            .lang("Auto-Landing Station")
+            .initialProperties(SharedProperties::netheriteMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.METAL)
+                    .strength(8f, 8f)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .simpleItem()
+            .register();
+
+    public static final BlockEntry<RocketThrusterBlock> ROCKET_THRUSTER = REGISTRATE
+            .block("rocket_thruster", RocketThrusterBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .onRegister(MovementBehaviour.movementBehaviour(new RocketThrusterMovementBehaviour()))
+            .item()
+            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/rocket_thruster/single")))
+            .build()
+            .register();
+
+    public static final BlockEntry<TargetingComputerRackBlock> COMPUTER_RACK = REGISTRATE
+            .block("computer_rack", TargetingComputerRackBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .noOcclusion()
+                    .sound(SoundType.NETHERITE_BLOCK))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .item()
+            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/computer_rack/block")))
+            .build()
+            .register();
+
+    public static final BlockEntry<SpaceDoorBlock> TITANIUM_SPACE_DOOR = REGISTRATE
+            .block("titanium_space_door", p -> new SpaceDoorBlock(p, BlockSetType.IRON, false))
+            .transform(BuilderTransformers.slidingDoor("titanium_space"))
+            .properties(p -> p.mapColor(MapColor.TERRACOTTA_CYAN)
+                    .sound(SoundType.NETHERITE_BLOCK)
+                    .noOcclusion())
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .register();
+
+    public static final BlockEntry<TrapDoorBlock> TITANIUM_TRAPDOOR = REGISTRATE
+            .block("titanium_trapdoor", p -> new TrapDoorBlock(BlockSetType.STONE, p))
+            .properties(p -> p.mapColor(MapColor.TERRACOTTA_CYAN)
+                    .sound(SoundType.NETHERITE_BLOCK)
+                    .noOcclusion())
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate((c, p) -> p.trapdoorBlockWithRenderType(c.get(), p.modLoc("block/titanium_trapdoor"), true, "minecraft:cutout_mipped"))
+            .item()
+            .model((c, p) -> p.trapdoorBottom(c.getName(), p.modLoc("block/titanium_trapdoor")).renderType("minecraft:cutout_mipped"))
+            .build()
+            .register();
+
+    public static final BlockEntry<InterplanetaryNavigatorBlock> INTERPLANETARY_NAVIGATOR = REGISTRATE
+            .block("interplanetary_navigator", InterplanetaryNavigatorBlock::new)
+            .initialProperties(SharedProperties::netheriteMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
+                    .sound(SoundType.METAL)
+                    .strength(8f, 8f)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .tag(AllBlockTags.BRITTLE.tag)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .loot((c, b) -> c.add(b, c.createSinglePropConditionTable(b, InterplanetaryNavigatorBlock.HALF, DoubleBlockHalf.LOWER)))
+            .item()
+            .model(NorthstarDataGenModels.itemGeneratedItem())
+            .build()
+            .register();
+
 
     // region Martian Steel
 
@@ -584,6 +920,10 @@ public class NorthstarBlocks {
             .register();
 
     // endregion
+
+    static {
+        REGISTRATE.setCreativeTab(NorthstarCreativeModeTab.BLOCKS);
+    }
     // region Mars
 
     // TODO: color
@@ -3794,382 +4134,6 @@ public class NorthstarBlocks {
             .model(NorthstarDataGenModels.itemGeneratedItem())
             .build()
             .register();
-
-    // region Tech
-
-    static {
-        REGISTRATE.setCreativeTab(NorthstarCreativeModeTab.TECH);
-    }
-
-    public static final BlockEntry<TelescopeBlock> TELESCOPE = REGISTRATE
-            .block("telescope", TelescopeBlock::new)
-            .initialProperties(SharedProperties::stone)
-            .properties(p -> p.mapColor(MapColor.COLOR_BROWN)
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .sound(SoundType.COPPER)
-                    .strength(8f, 8f)
-                    .noOcclusion())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .item()
-            .model(NorthstarDataGenModels.itemGeneratedItem())
-            .build()
-            .register();
-
-    public static final BlockEntry<AstronomyTableBlock> ASTRONOMY_TABLE = REGISTRATE
-            .block("astronomy_table", AstronomyTableBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .sound(SoundType.WOOD))
-            .tag(BlockTags.MINEABLE_WITH_AXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<SpaceCogWheelBlock> IRON_COGWHEEL = REGISTRATE
-            .block("iron_cogwheel", SpaceCogWheelBlock::small)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.METAL))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 0))
-            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
-            .item(CogwheelBlockItem::new)
-            .build()
-            .register();
-
-    public static final BlockEntry<SpaceCogWheelBlock> IRON_LARGE_COGWHEEL = REGISTRATE
-            .block("iron_large_cogwheel", SpaceCogWheelBlock::large)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.METAL))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 0))
-            .onRegister(CreateRegistrate.blockModel(() -> BracketedKineticBlockModel::new))
-            .lang("Large Iron Cogwheel")
-            .item(CogwheelBlockItem::new)
-            .build()
-            .register();
-
-    public static final BlockEntry<SolarPanelBlock> SOLAR_PANEL = REGISTRATE
-            .block("solar_panel", SolarPanelBlock::new)
-            .initialProperties(SharedProperties::stone)
-            .properties(p -> p.mapColor(MapColor.CLAY)
-                    .noOcclusion())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.CAPACITIES.register(b, () -> 128.0))
-            .onRegister(BlockStressValues.setGeneratorSpeed(SolarPanelBlockEntity.MAXIMUM_SPEED, true))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<CombustionEngineBlock> COMBUSTION_ENGINE = REGISTRATE
-            .block("combustion_engine", CombustionEngineBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(8, 8))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.CAPACITIES.register(b, () -> 256))
-            //.onRegister(BlockStressValues.setGeneratorSpeed(CombustionEngineBlock.getSpeedRange().getSecond(), true))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<CircuitEngraverBlock> CIRCUIT_ENGRAVER = REGISTRATE
-            .block("circuit_engraver", CircuitEngraverBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_BLACK)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
-            .item(AssemblyOperatorBlockItem::new)
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<ElectrolysisMachineBlock> ELECTROLYSIS_MACHINE = REGISTRATE
-            .block("electrolysis_machine", ElectrolysisMachineBlock::new)
-            .initialProperties(SharedProperties::stone)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .sound(SoundType.NETHERITE_BLOCK).noOcclusion())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<AtmosphericConcentratorBlock> ATMOSPHERIC_CONCENTRATOR = REGISTRATE
-            .block("atmospheric_concentrator", AtmosphericConcentratorBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(6, 6))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<OxygenFillerBlock> OXYGEN_FILLER = REGISTRATE
-            .block("oxygen_filler", OxygenFillerBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(6, 6))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new OxygenFillerMovingInteractionBehaviour()))
-            .onRegister(MovementBehaviour.movementBehaviour(new OxygenFillerMovementBehaviour()))
-            .item()
-            .model((c, p) -> p.blockItem(c::get))
-            .build()
-            .register();
-
-    public static final BlockEntry<OxygenSealerBlock> OXYGEN_SEALER = REGISTRATE
-            .block("oxygen_sealer", OxygenSealerBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(8, 8))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new OxygenSealerMovingInteractionBehaviour()))
-            .onRegister(MovementBehaviour.movementBehaviour(new OxygenSealerMovementBehaviour()))
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<OxygenDetectorBlock> OXYGEN_DETECTOR = REGISTRATE
-            .block("oxygen_detector", OxygenDetectorBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<TemperatureRegulatorBlock> TEMPERATURE_REGULATOR = REGISTRATE
-            .block("temperature_regulator", TemperatureRegulatorBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(8, 8))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 16))
-            .onRegister(MovementBehaviour.movementBehaviour(new TemperatureRegulatorMovementBehaviour()))
-            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new TemperatureRegulatorMovingInteractionBehaviour()))
-            .transform(DisplaySource.displaySource(NorthstarDisplaySources.TEMPERATURE))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<LargeFanBlock> LARGE_FAN = REGISTRATE
-            .block("large_fan", LargeFanBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never)
-                    .strength(8, 8))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(b -> BlockStressValues.IMPACTS.register(b, () -> 8))
-            .item()
-            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/large_fan/block_single")))
-            .build()
-            .register();
-
-    public static final BlockEntry<IceBoxBlock> ICE_BOX = REGISTRATE
-            .block("ice_box", IceBoxBlock::new)
-            .initialProperties(SharedProperties::stone)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovementBehaviour.movementBehaviour(new BasinMovementBehaviour()))
-            .transform(DisplaySource.displaySource(NorthstarDisplaySources.TEMPERATURE))
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<RocketStationBlock> ROCKET_STATION = REGISTRATE
-            .block("rocket_station", RocketStationBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .simpleItem()
-            .onRegister(MovementBehaviour.movementBehaviour(new RocketStationBlockMovementBehaviour()))
-            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new RocketStationBlockMovingInteraction()))
-            .register();
-
-    public static final BlockEntry<RocketControlsBlock> ROCKET_CONTROLS = REGISTRATE
-            .block("rocket_controls", RocketControlsBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovementBehaviour.movementBehaviour(new RocketControlsMovementBehaviour()))
-            .onRegister(MovingInteractionBehaviour.interactionBehaviour(new RocketControlsInteractionBehaviour()))
-            .item()
-            .transform(customItemModel())
-            .register();
-
-    public static final BlockEntry<RocketWaypointBlock> ROCKET_WAYPOINT = REGISTRATE
-            .block("rocket_waypoint", RocketWaypointBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .item()
-            .model((c, p) -> p.blockItem(c::get, "_inactive"))
-            .build()
-            .register();
-
-    public static final BlockEntry<AutoLanderBlock> AUTO_LANDER = REGISTRATE
-            .block("auto_lander", AutoLanderBlock::new)
-            .lang("Auto-Landing Station")
-            .initialProperties(SharedProperties::netheriteMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.METAL)
-                    .strength(8f, 8f)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<RocketThrusterBlock> ROCKET_THRUSTER = REGISTRATE
-            .block("rocket_thruster", RocketThrusterBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovementBehaviour.movementBehaviour(new RocketThrusterMovementBehaviour()))
-            .item()
-            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/rocket_thruster/single")))
-            .build()
-            .register();
-
-    public static final BlockEntry<TargetingComputerRackBlock> COMPUTER_RACK = REGISTRATE
-            .block("computer_rack", TargetingComputerRackBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .sound(SoundType.NETHERITE_BLOCK))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(NorthstarBlockTags.AIR_PASSES_THROUGH.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .item()
-            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/computer_rack/block")))
-            .build()
-            .register();
-
-    public static final BlockEntry<SpaceDoorBlock> TITANIUM_SPACE_DOOR = REGISTRATE
-            .block("titanium_space_door", p -> new SpaceDoorBlock(p, BlockSetType.IRON, false))
-            .transform(BuilderTransformers.slidingDoor("titanium_space"))
-            .properties(p -> p.mapColor(MapColor.TERRACOTTA_CYAN)
-                    .sound(SoundType.NETHERITE_BLOCK)
-                    .noOcclusion())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .register();
-
-    public static final BlockEntry<TrapDoorBlock> TITANIUM_TRAPDOOR = REGISTRATE
-            .block("titanium_trapdoor", p -> new TrapDoorBlock(BlockSetType.STONE, p))
-            .properties(p -> p.mapColor(MapColor.TERRACOTTA_CYAN)
-                    .sound(SoundType.NETHERITE_BLOCK)
-                    .noOcclusion())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate((c, p) -> p.trapdoorBlockWithRenderType(c.get(), p.modLoc("block/titanium_trapdoor"), true, "minecraft:cutout_mipped"))
-            .item()
-            .model((c, p) -> p.trapdoorBottom(c.getName(), p.modLoc("block/titanium_trapdoor")).renderType("minecraft:cutout_mipped"))
-            .build()
-            .register();
-
-    public static final BlockEntry<InterplanetaryNavigatorBlock> INTERPLANETARY_NAVIGATOR = REGISTRATE
-            .block("interplanetary_navigator", InterplanetaryNavigatorBlock::new)
-            .initialProperties(SharedProperties::netheriteMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.METAL)
-                    .strength(8f, 8f)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .tag(AllBlockTags.BRITTLE.tag)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .loot((c, b) -> c.add(b, c.createSinglePropConditionTable(b, InterplanetaryNavigatorBlock.HALF, DoubleBlockHalf.LOWER)))
-            .item()
-            .model(NorthstarDataGenModels.itemGeneratedItem())
-            .build()
-            .register();
-
-    /*public static final BlockEntry<OxygenBubbleGeneratorBlock> OXYGEN_BUBBLE_GENERATOR = REGISTRATE
-            .block("oxygen_bubble_generator", OxygenBubbleGeneratorBlock::new)
-            .lang("Oxygen Bubble Generator (WIP)")
-            .initialProperties(SharedProperties::netheriteMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .sound(SoundType.COPPER)
-                    .strength(8f, 8f)
-                    .requiresCorrectToolForDrops())
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<LaserLenseBlock> LASER_LENSE = REGISTRATE
-            .block("laser_lense", LaserLenseBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_GRAY)
-                    .noOcclusion()
-                    .sound(SoundType.COPPER))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .lang("Laser Lense (WIP)")
-            .simpleItem()
-            .register();
-
-    public static final BlockEntry<LaserBlock> LASER = REGISTRATE
-            .block("laser", LaserBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_RED)
-                    .noOcclusion()
-                    .noCollission()
-                    .lightLevel(state -> 15))
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .lang("Laser (WIP)")
-            .simpleItem()
-            .register();*/
 
     // endregion
 

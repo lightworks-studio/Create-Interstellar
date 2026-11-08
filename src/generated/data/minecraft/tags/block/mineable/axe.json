@@ -1,5 +1,6 @@
 {
   "values": [
+    "northstar:astronomy_table",
     "northstar:stripped_wilter_log",
     "northstar:wilter_log",
     "northstar:wilter_planks",
@@ -27,7 +28,6 @@
     "northstar:calorian_log",
     "northstar:calorian_planks",
     "northstar:calorian_slab",
-    "northstar:calorian_stairs",
-    "northstar:astronomy_table"
+    "northstar:calorian_stairs"
   ]
 }

@@ -1,7 +1,7 @@
 modLoader = "javafml"
 loaderVersion = "[0,)"
 license = "MIT"
-issueTrackerURL = "https://github.com/Astronauts-of-Create/Northstar-Redux/issues"
+issueTrackerURL = "https://github.com/lightworks-studio/Create-Interstellar/issues"
 
 
 [[mods]]
@@ -9,13 +9,13 @@ modId = "northstar"
 displayTest = "MATCH_VERSION"
 version = "${file.jarVersion}"
 
-displayName = "Northstar Redux"
-displayURL = "https://modrinth.com/project/northstar-redux"
+displayName = "Create Interstellar"
+displayURL = "https://www.curseforge.com/minecraft/mc-mods/create-interstellar"
 logoFile = "logo.png"
 credits = "Original mod by lightning2401."
-authors = "Redstonneur1256, lightning2401"
+authors = "Lightning3223, Redstonneur1256, lightning2401"
 description = '''
-Inspired by Micdoodle's Galacticraft, Northstar seeks to return players to the stars with the power of the Create mod. 
+Interstellar seeks to provide a challenging and yet rewarding space addon for Create you won't soon forget!
 '''
 
 [[mixins]]
