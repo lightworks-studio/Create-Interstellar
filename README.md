@@ -13,3 +13,10 @@ Make sure that no existing issue matches the bug or feature and that it isn't pl
 - Do not make large changes without discussing them first. If in doubt please open an issue or join our [Discord](https://discord.gg/nn96VTzeqj).
 - Do not add mods as dependencies unless absolutely required. For testing in the development environment, mods should go in the `run/mods-obf/` folder
 - Always test your changes. Make sure that the code compiles and that the change works as expected.
+
+# Credit
+Credit to Redstone
+
+
+## Planned
+1. 

@@ -28,6 +28,9 @@ public class NorthstarParticles {
     private static final DeferredRegister<ParticleType<?>> REGISTER = DeferredRegister.create(Registries.PARTICLE_TYPE, Northstar.MOD_ID);
     private static final List<Consumer<RegisterParticleProvidersEvent>> FACTORIES = new ArrayList<>();
 
+    public static final DeferredHolder<ParticleType<?>, ParticleType<ThrusterPlumeParticleData>> THRUSTER_PLUME =
+            REGISTER.register("thruster_plume", () -> ThrusterPlumeParticleData.INSTANCE.createType());
+
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType>
             COLD_AIR = simpleSprite("cold_air", () -> ColdAirParticle::new),
             DUST_CLOUD = simpleSprite("dust_cloud", () -> DustCloudParticle::new),
@@ -46,6 +49,7 @@ public class NorthstarParticles {
     @SubscribeEvent
     @OnlyIn(Dist.CLIENT)
     public static void registerFactories(RegisterParticleProvidersEvent event) {
+        ThrusterPlumeParticleData.INSTANCE.register(THRUSTER_PLUME.get(), event);
         for (Consumer<RegisterParticleProvidersEvent> factory : FACTORIES) {
             factory.accept(event);
         }

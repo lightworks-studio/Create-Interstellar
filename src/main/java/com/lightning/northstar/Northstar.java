@@ -2,6 +2,7 @@ package com.lightning.northstar;
 
 import com.lightning.northstar.accessor.NorthstarLevel;
 import com.lightning.northstar.advancements.NorthstarAdvancements;
+import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterFuelManager;
 import com.lightning.northstar.compat.sable.NorthstarSable;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.content.*;
@@ -43,6 +44,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -137,6 +139,11 @@ public class Northstar {
             event.dataPackRegistry(NorthstarRegistries.FUEL, FuelType.CODEC, FuelType.CODEC);
             event.dataPackRegistry(NorthstarRegistries.PLANET, PlanetProperties.CODEC, PlanetProperties.CODEC);
             event.dataPackRegistry(NorthstarRegistries.PLANET_DIMENSION, PlanetDimension.CODEC, PlanetDimension.CODEC);
+        }
+
+        @SubscribeEvent
+        public static void onAddReloadListener(AddReloadListenerEvent event) {
+            event.addListener(new RocketThrusterFuelManager());
         }
 
         @SubscribeEvent

@@ -39,7 +39,11 @@ public class NorthstarPartialModels {
             LARGE_FAN_CORNER = block("large_fan/block_corner"),
             LARGE_FAN_SIDE = block("large_fan/block_side"),
             LARGE_FAN_BLADE = block("large_fan/blade"),
-            LARGE_FAN_ROTOR = block("large_fan/rotor");
+            LARGE_FAN_ROTOR = block("large_fan/rotor"),
+            ROCKET_THRUSTER_MULTIBLOCK_2X2X2_BODY = block("rocket_thruster/multiblock_2x2x2_body"),
+            ROCKET_THRUSTER_MULTIBLOCK_2X2X2_CAP = block("rocket_thruster/multiblock_2x2x2_cap"),
+            ROCKET_THRUSTER_MULTIBLOCK_3X3X3_BODY = block("rocket_thruster/multiblock_3x3x3_body"),
+            ROCKET_THRUSTER_MULTIBLOCK_3X3X3_CAP = block("rocket_thruster/multiblock_3x3x3_cap");
 
     private static PartialModel block(String path) {
         return PartialModel.of(Northstar.asResource("block/" + path));

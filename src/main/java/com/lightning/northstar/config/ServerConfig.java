@@ -34,6 +34,13 @@ public class ServerConfig extends ConfigBase {
     public final ConfigFloat landingFuelScale = f(10, 0, "landingFuelScale");
     public final ConfigFloat travelFuelScale = f(10, 0, "travelFuelScale");
 
+    public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster multiblock properties");
+
+    public final ConfigFloat rocketThrusterBaseThrust = f(500, 0, "baseThrust", "Base thrust of a single rocket thruster in Newtons");
+    public final ConfigFloat rocketThrusterFuelUsage = f(1, 0, "fuelUsage", "Fuel consumed per tick per block at full throttle");
+    public final ConfigInt rocketThrusterFuelCapacity = i(1000, 1, "fuelCapacity", "Fuel and oxidizer capacity per thruster block, in mB");
+    public final ConfigInt rocketThrusterMaxLength = i(64, 3, "maxLength", "Maximum length of a multiblock rocket thruster");
+
     public final ConfigGroup gameplay = group(1, "gameplay");
 
     public final ConfigFloat telescopePlanetSpeed = f(10, 0, "telescopePlanetSpeed", "How fast should planets move in the telescope screen");
