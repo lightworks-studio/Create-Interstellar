@@ -1,4 +1,4 @@
-package com.lightning.northstar.block.tech.rocket_thruster;
+package com.lightning.northstar.block.tech.thruster;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -16,22 +16,22 @@ import org.jetbrains.annotations.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RocketThrusterFuelManager extends SimpleJsonResourceReloadListener {
+public class ThrusterFuelManager extends SimpleJsonResourceReloadListener {
 
     private static final Gson GSON = new Gson();
     private static final String DIRECTORY = "thruster_fuels";
 
-    private static volatile Map<Fluid, RocketThrusterFuelProperties> fuels = Map.of();
+    private static volatile Map<Fluid, ThrusterFuelProperties> fuels = Map.of();
 
-    public RocketThrusterFuelManager() {
+    public ThrusterFuelManager() {
         super(GSON, DIRECTORY);
     }
 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> jsons, @NotNull ResourceManager resourceManager, @NotNull ProfilerFiller profiler) {
-        Map<Fluid, RocketThrusterFuelProperties> loaded = new HashMap<>();
+        Map<Fluid, ThrusterFuelProperties> loaded = new HashMap<>();
 
-        jsons.forEach((location, json) -> RocketThrusterFuelProperties.CODEC.parse(JsonOps.INSTANCE, json)
+        jsons.forEach((location, json) -> ThrusterFuelProperties.CODEC.parse(JsonOps.INSTANCE, json)
                 .resultOrPartial(error -> Northstar.LOGGER.error("Failed to parse thruster fuel '{}': {}", location, error))
                 .ifPresent(properties -> {
                     Fluid fluid = properties.resolveFluid();
@@ -49,15 +49,15 @@ public class RocketThrusterFuelManager extends SimpleJsonResourceReloadListener 
         return getProperties(fluid) != null;
     }
 
-    public static RocketThrusterFuelProperties getProperties(Fluid fluid) {
+    public static ThrusterFuelProperties getProperties(Fluid fluid) {
         if (fluid == null || fluid == net.minecraft.world.level.material.Fluids.EMPTY)
             return null;
 
-        RocketThrusterFuelProperties properties = fuels.get(FluidHelper.convertToStill(fluid));
+        ThrusterFuelProperties properties = fuels.get(FluidHelper.convertToStill(fluid));
         if (properties != null)
             return properties;
 
-        return FuelType.getFuelType(fluid) == null ? null : RocketThrusterFuelProperties.DEFAULT;
+        return FuelType.getFuelType(fluid) == null ? null : ThrusterFuelProperties.DEFAULT;
     }
 
 }

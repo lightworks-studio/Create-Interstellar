@@ -21,6 +21,8 @@ import com.lightning.northstar.block.tech.ice_box.IceBoxRenderer;
 import com.lightning.northstar.block.tech.large_fan.LargeFanBlockEntity;
 import com.lightning.northstar.block.tech.large_fan.LargeFanRenderer;
 import com.lightning.northstar.block.tech.large_fan.LargeFanVisual;
+import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterBlockEntity;
+import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterRenderer;
 import com.lightning.northstar.block.tech.oxygen_detector.OxygenDetectorBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerRenderer;
@@ -172,6 +174,12 @@ public class NorthstarBlockEntityTypes {
             .blockEntity("rocket_thruster", RocketThrusterBlockEntity::new)
             .validBlocks(NorthstarBlocks.ROCKET_THRUSTER)
             .renderer(() -> RocketThrusterRenderer::new)
+            .register();
+
+    public static final BlockEntityEntry<LiquidThrusterBlockEntity> LIQUID_THRUSTER = REGISTRATE
+            .blockEntity("liquid_thruster", LiquidThrusterBlockEntity::new)
+            .validBlocks(NorthstarBlocks.LIQUID_THRUSTER)
+            .renderer(() -> LiquidThrusterRenderer::new)
             .register();
 
     public static final BlockEntityEntry<BracketedKineticBlockEntity> BRACKETED_KINETIC = REGISTRATE

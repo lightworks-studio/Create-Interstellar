@@ -43,7 +43,11 @@ public class NorthstarPartialModels {
             ROCKET_THRUSTER_MULTIBLOCK_2X2X2_BODY = block("rocket_thruster/multiblock_2x2x2_body"),
             ROCKET_THRUSTER_MULTIBLOCK_2X2X2_CAP = block("rocket_thruster/multiblock_2x2x2_cap"),
             ROCKET_THRUSTER_MULTIBLOCK_3X3X3_BODY = block("rocket_thruster/multiblock_3x3x3_body"),
-            ROCKET_THRUSTER_MULTIBLOCK_3X3X3_CAP = block("rocket_thruster/multiblock_3x3x3_cap");
+            ROCKET_THRUSTER_MULTIBLOCK_3X3X3_CAP = block("rocket_thruster/multiblock_3x3x3_cap"),
+            LIQUID_THRUSTER_MULTIBLOCK_2X2X2_BODY = block("liquid_thruster/multiblock_2x2x2_body"),
+            LIQUID_THRUSTER_MULTIBLOCK_2X2X2_CAP = block("liquid_thruster/multiblock_2x2x2_cap"),
+            LIQUID_THRUSTER_MULTIBLOCK_3X3X3_BODY = block("liquid_thruster/multiblock_3x3x3_body"),
+            LIQUID_THRUSTER_MULTIBLOCK_3X3X3_CAP = block("liquid_thruster/multiblock_3x3x3_cap");
 
     private static PartialModel block(String path) {
         return PartialModel.of(Northstar.asResource("block/" + path));

@@ -1,4 +1,4 @@
-package com.lightning.northstar.block.tech.rocket_thruster;
+package com.lightning.northstar.block.tech.thruster;
 
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;

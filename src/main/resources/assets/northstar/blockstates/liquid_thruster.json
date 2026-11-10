@@ -1,0 +1,48 @@
+{
+  "variants": {
+    "facing=up,multi=false": {
+      "model": "northstar:block/liquid_thruster/single"
+    },
+    "facing=down,multi=false": {
+      "model": "northstar:block/liquid_thruster/single",
+      "x": 180
+    },
+    "facing=north,multi=false": {
+      "model": "northstar:block/liquid_thruster/single",
+      "x": 90
+    },
+    "facing=south,multi=false": {
+      "model": "northstar:block/liquid_thruster/single",
+      "x": 90,
+      "y": 180
+    },
+    "facing=east,multi=false": {
+      "model": "northstar:block/liquid_thruster/single",
+      "x": 90,
+      "y": 90
+    },
+    "facing=west,multi=false": {
+      "model": "northstar:block/liquid_thruster/single",
+      "x": 90,
+      "y": 270
+    },
+    "facing=up,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    },
+    "facing=down,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    },
+    "facing=north,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    },
+    "facing=south,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    },
+    "facing=east,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    },
+    "facing=west,multi=true": {
+      "model": "northstar:block/liquid_thruster/empty"
+    }
+  }
+}

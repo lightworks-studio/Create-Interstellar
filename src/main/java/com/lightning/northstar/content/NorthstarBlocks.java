@@ -12,6 +12,7 @@ import com.lightning.northstar.block.tech.computer_rack.TargetingComputerRackBlo
 import com.lightning.northstar.block.tech.electrolysis_machine.ElectrolysisMachineBlock;
 import com.lightning.northstar.block.tech.ice_box.IceBoxBlock;
 import com.lightning.northstar.block.tech.large_fan.LargeFanBlock;
+import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterBlock;
 import com.lightning.northstar.block.tech.oxygen_detector.OxygenDetectorBlock;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerBlock;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerMovementBehaviour;
@@ -382,6 +383,19 @@ public class NorthstarBlocks {
             .onRegister(MovementBehaviour.movementBehaviour(new RocketThrusterMovementBehaviour()))
             .item()
             .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/rocket_thruster/single")))
+            .build()
+            .register();
+
+    public static final BlockEntry<LiquidThrusterBlock> LIQUID_THRUSTER = REGISTRATE
+            .block("liquid_thruster", LiquidThrusterBlock::new)
+            .initialProperties(SharedProperties::softMetal)
+            .properties(p -> p.mapColor(MapColor.COLOR_CYAN)
+                    .noOcclusion()
+                    .isViewBlocking(NorthstarBlocks::never))
+            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .item()
+            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/liquid_thruster/single")))
             .build()
             .register();
 

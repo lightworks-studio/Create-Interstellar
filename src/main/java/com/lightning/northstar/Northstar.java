@@ -2,7 +2,7 @@ package com.lightning.northstar;
 
 import com.lightning.northstar.accessor.NorthstarLevel;
 import com.lightning.northstar.advancements.NorthstarAdvancements;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterFuelManager;
+import com.lightning.northstar.block.tech.thruster.ThrusterFuelManager;
 import com.lightning.northstar.compat.sable.NorthstarSable;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.content.*;
@@ -143,7 +143,7 @@ public class Northstar {
 
         @SubscribeEvent
         public static void onAddReloadListener(AddReloadListenerEvent event) {
-            event.addListener(new RocketThrusterFuelManager());
+            event.addListener(new ThrusterFuelManager());
         }
 
         @SubscribeEvent
