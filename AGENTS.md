@@ -12,30 +12,31 @@ You are responsible for keeping the architectural documentation in the `docs/` d
   * `docs/modules/`: Detailed breakdown of specific subsystems or mod packages.
   * `docs/decisions/`: Brief notes on architectural choices or trade-offs made during development.
 
+### Documentation Maintenance Is Mandatory
+* **After Every Implementation:** Once code changes are complete, review whether the changes affect existing documentation. Update relevant documentation in `docs/` whenever implementation details, behavior, dependencies, configuration, or code organization have changed.
+* **No Documentation Drift:** Documentation must accurately reflect the current implementation, not the intended implementation or outdated behavior.
+* **Verify Before Finishing:** Before declaring a task complete, verify that all necessary documentation updates have been made alongside the code changes.
+* **No Unnecessary Documentation:** Do not modify documentation for purely cosmetic changes, formatting fixes, or changes that have no architectural, behavioral, or developer-facing impact.
+* **Completion Reporting:** Include documentation files created or updated in the final change summary.
+
 ---
 
 ## 2. Workspace Ignore Rules & Boundaries
 To protect system performance, prevent accidental edits to generated build artifacts, and control token consumption, **you must completely ignore** the following files, directories, and patterns:
-
-### Build Artifacts & Dependencies
 * `build/`
 * `target/`
 * `.gradle/`
 * `node_modules/`
 * `bin/`
 * `obj/`
-
-### IDE & Local Configuration
 * `.idea/`
 * `.vscode/`
 * `*.iml`
 * `.DS_Store`
 * `*.log`
-* 'run/'
-* 'run-server/'
-* 'src/generated/'
-
-### Binary & Large Assets
+* `run/`
+* `run-server/`
+* `src/generated/`
 * Compiled binaries (`*.jar`, `*.class`, `*.exe`, `*.dll`, `*.so`)
 * Large media asset archives or raw texture packs unless explicitly asked to modify a specific asset source.
 
