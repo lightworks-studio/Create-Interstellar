@@ -29,6 +29,7 @@ import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerRenderer;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerVisual;
 import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelBlockEntity;
 import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelRenderer;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelVisual;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsBlockEntity;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsRenderer;
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlockEntity;
@@ -49,7 +50,10 @@ import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockEn
 import com.tterrag.registrate.builders.BlockEntityBuilder.BlockEntityFactory;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
 import dev.engine_room.flywheel.lib.model.Models;
+import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import net.minecraft.core.Direction;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
 import static com.lightning.northstar.Northstar.REGISTRATE;
 
@@ -168,11 +172,12 @@ public class NorthstarBlockEntityTypes {
             .register();
 
 
-    public static final BlockEntityEntry<ReactionWheelBlockEntity> GYROSCOPE = REGISTRATE
+    public static final BlockEntityEntry<ReactionWheelBlockEntity> REACTION_WHEEL = REGISTRATE
             .blockEntity("gyroscope", ReactionWheelBlockEntity::new)
             .validBlocks(NorthstarBlocks.REACTION_WHEEL)
             .renderer(() -> ReactionWheelRenderer::new)
             .register();
+
 
     public static final BlockEntityEntry<BracketedKineticBlockEntity> BRACKETED_KINETIC = REGISTRATE
             .blockEntity("simple_kinetic", BracketedKineticBlockEntity::new)
@@ -180,6 +185,16 @@ public class NorthstarBlockEntityTypes {
             .validBlocks(NorthstarBlocks.IRON_COGWHEEL, NorthstarBlocks.IRON_LARGE_COGWHEEL)
             .renderer(() -> BracketedKineticBlockEntityRenderer::new)
             .register();
+
+    @OnlyIn(Dist.CLIENT)
+    public static void registerClientVisuals() {
+        //Reaction wheel visual
+        SimpleBlockEntityVisualizer.builder(NorthstarBlockEntityTypes.REACTION_WHEEL.get())
+                .factory((ctx, be, partialTick) ->
+                        new ReactionWheelVisual(ctx, (ReactionWheelBlockEntity) be, partialTick))
+                .neverSkipVanillaRender()
+                .apply();
+    }
 
     public static void register() {
     }

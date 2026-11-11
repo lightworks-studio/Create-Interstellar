@@ -13,6 +13,7 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import dev.egg.dimensionalsable.SubLevelWarper;
+import dev.ryanhcode.sable.api.physics.force.ForceTotal;
 import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
@@ -80,12 +81,13 @@ public class RocketStationBlockEntity extends SmartBlockEntity
         orientation.transform(forward);
         final Vector3d refAxis = Math.abs(forward.y) > 0.99 ? new Vector3d(1, 0, 0) : new Vector3d(0, 1, 0);
         final Vector3d flipAxis = new Vector3d().cross(forward, refAxis).normalize();
-        final Quaterniond flippedOrientation = new Quaterniond().fromAxisAngleRad(flipAxis, Math.PI).mul(orientation);
+//        final Quaterniond flippedOrientation = new Quaterniond().fromAxisAngleRad(flipAxis, Math.PI).mul(orientation);
 
-        final int warped = SubLevelWarper.warpConnectedSubLevels(subLevel, destLevel, destPos, flippedOrientation);
+        final int warped = SubLevelWarper.warpConnectedSubLevels(subLevel, destLevel, destPos);
 
         // Zero the velocity so the ship does not immediately re-trigger the warp in the new dimension
-        handle.addLinearAndAngularVelocity(handle.getLinearVelocity(new Vector3d()).negate(), handle.getAngularVelocity(new Vector3d()).negate());
+
+//        handle.addLinearAndAngularVelocity(handle.getLinearVelocity(new Vector3d()).negate(), handle.getAngularVelocity(new Vector3d()).negate());
 
         LOGGER.info("Rocket station at {} warped {} sub-level(s) to {} @ [{}]", worldPosition, warped, destination.dim(), destPos);
     }

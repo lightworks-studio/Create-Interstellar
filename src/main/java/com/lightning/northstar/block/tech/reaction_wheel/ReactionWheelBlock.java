@@ -61,7 +61,7 @@ public class ReactionWheelBlock extends KineticBlock implements IBE<ReactionWhee
    }
 
    public BlockEntityType<? extends ReactionWheelBlockEntity> getBlockEntityType() {
-      return (BlockEntityType) NorthstarBlockEntityTypes.GYROSCOPE.get();
+      return (BlockEntityType) NorthstarBlockEntityTypes.REACTION_WHEEL.get();
    }
 
    static {

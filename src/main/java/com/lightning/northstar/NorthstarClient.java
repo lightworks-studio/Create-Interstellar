@@ -4,7 +4,9 @@ import java.util.Map;
 
 import com.lightning.northstar.accessor.NorthstarLevel;
 import com.lightning.northstar.api.client.NorthstarDimensionEffectsExtension;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelBlockEntity;
 import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelItemRenderer;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelVisual;
 import com.lightning.northstar.client.NorthstarAtlas;
 import com.lightning.northstar.client.renderer.RemainingOxygenOverlay;
 import com.lightning.northstar.client.renderer.armor.SpaceSuitFirstPersonRenderer;
@@ -13,12 +15,8 @@ import com.lightning.northstar.client.renderer.effect.MarsEffects;
 import com.lightning.northstar.client.renderer.effect.SpaceEffects;
 import com.lightning.northstar.client.renderer.effect.VenusEffects;
 import com.lightning.northstar.config.NorthstarConfigs;
-import com.lightning.northstar.content.NorthstarBlocks;
-import com.lightning.northstar.content.NorthstarDataComponents;
-import com.lightning.northstar.content.NorthstarFluids;
-import com.lightning.northstar.content.NorthstarItems;
+import com.lightning.northstar.content.*;
 import com.lightning.northstar.content.NorthstarTags.NorthstarItemTags;
-import com.lightning.northstar.content.NorthstarTextures;
 import com.lightning.northstar.content.world.NorthstarDimensionEffects;
 import com.lightning.northstar.contraption.rocket.LaunchStatus;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
@@ -27,6 +25,7 @@ import com.lightning.northstar.ponder.NorthstarPonderPlugin;
 import com.lightning.northstar.util.NorthstarLang;
 import com.simibubi.create.content.trains.CameraDistanceModifier;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
+import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import net.createmod.catnip.lang.LangNumberFormat;
 import net.createmod.ponder.foundation.PonderIndex;
 import net.minecraft.ChatFormatting;
@@ -72,7 +71,9 @@ public class NorthstarClient {
         PonderIndex.addPlugin(new NorthstarPonderPlugin());
 
         SpaceSuitFirstPersonRenderer.register();
+        NorthstarBlockEntityTypes.registerClientVisuals();
     }
+
 
     @SubscribeEvent
     public static void registerClientReloadListeners(RegisterClientReloadListenersEvent event) {
@@ -192,17 +193,17 @@ public class NorthstarClient {
     public static void onMountEntity(EntityMountEvent event) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null &&
-            player.equals(event.getEntityMounting()) &&
-            event.isDismounting() &&
-            event.getEntityBeingMounted() instanceof RocketContraptionEntity rocket &&
-            rocket.getStatus() != LaunchStatus.WAITING) {
+                player.equals(event.getEntityMounting()) &&
+                event.isDismounting() &&
+                event.getEntityBeingMounted() instanceof RocketContraptionEntity rocket &&
+                rocket.getStatus() != LaunchStatus.WAITING) {
             event.setCanceled(true);
             return;
         }
 
         if (player != null &&
-            player.equals(event.getEntityMounting()) &&
-            event.getEntityBeingMounted() instanceof RocketContraptionEntity) {
+                player.equals(event.getEntityMounting()) &&
+                event.getEntityBeingMounted() instanceof RocketContraptionEntity) {
             if (event.isDismounting()) {
                 CameraDistanceModifier.reset();
             } else {
@@ -232,7 +233,9 @@ public class NorthstarClient {
         }
     }
 
-    /** @return The current atmosphere blending factor for the player's eye position */
+    /**
+     * @return The current atmosphere blending factor for the player's eye position
+     */
     public static float getAtmosphereBlend() {
         return atmosphereBlend;
     }

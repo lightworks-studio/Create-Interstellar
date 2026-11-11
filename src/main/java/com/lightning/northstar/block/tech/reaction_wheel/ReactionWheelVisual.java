@@ -21,10 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 
 public class ReactionWheelVisual extends AbstractBlockEntityVisual<ReactionWheelBlockEntity> implements SimpleDynamicVisual {
-   private static final float FLYWHEEL_LIFT = 0.61875F;
-   private static final float FLYWHEEL_HEIGHT = 0.375F;
-   private static final float FLYWHEEL_LIFT_INVERTED = 0.006250024F;
-   private static final float SHAFT_DROP = 0.0F;
+
    private final OrientedInstance flywheel;
    private final OrientedInstance shaft;
    private final Quaternionf compensation = new Quaternionf();
