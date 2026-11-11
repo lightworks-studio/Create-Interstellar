@@ -1,5 +1,6 @@
 package com.lightning.northstar.block.tech.thruster;
 
+import com.lightning.northstar.Northstar;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.particle.ThrusterPlumeParticleData;
 import com.lightning.northstar.util.GoggleUtils;
@@ -689,17 +690,17 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
         calculateObstruction(getLevel(), worldPosition, getBlockState().getValue(AbstractThrusterBlock.FACING));
         isThrustDirty = wasThrustDirty;
 
-        MutableComponent title = Component.translatable("createkinetic.gui.goggles.title.thruster_stats").copy();
+        MutableComponent title = Component.translatable(Northstar.MOD_ID+".gui.goggles.title.thruster_stats").copy();
         if (width > 1) {
             title.append(Component.literal(" (" + width + "x" + width + "x" + width + ")").withStyle(ChatFormatting.GRAY));
         }
         CreateLang.builder().add(title).style(ChatFormatting.WHITE).forGoggles(tooltip);
-        CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.status")).text(": ").add(getGoggleStatus()).forGoggles(tooltip);
+        CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status")).text(": ").add(getGoggleStatus()).forGoggles(tooltip);
 
         addThrusterDetails(tooltip, isPlayerSneaking);
 
         if (controlMode == ControlMode.PERIPHERAL) {
-            CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.cc.peripheral_controlled")).style(ChatFormatting.GRAY).forGoggles(tooltip);
+            CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.cc.peripheral_controlled")).style(ChatFormatting.GRAY).forGoggles(tooltip);
         }
 
         return true;
@@ -712,22 +713,22 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
         if (emptyBlocks < scanLength) {
             obstructionEfficiency = calculateObstructionEffect() * 100;
             tooltipColor = GoggleUtils.efficiencyColor(obstructionEfficiency);
-            CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.obstructed")).space().add(CreateLang.text(GoggleUtils.makeObstructionBar(emptyBlocks, scanLength))).style(tooltipColor).forGoggles(tooltip);
+            CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.obstructed")).space().add(CreateLang.text(GoggleUtils.makeObstructionBar(emptyBlocks, scanLength))).style(tooltipColor).forGoggles(tooltip);
         }
 
         // Show efficiency based only on block obstruction (100 = no obstruction)
         CreateLang.builder()
-                .add(Component.translatable("createkinetic.gui.goggles.thruster.efficiency")).text(": ").add(CreateLang.number(obstructionEfficiency)).add(CreateLang.text("%"))
+                .add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.efficiency")).text(": ").add(CreateLang.number(obstructionEfficiency)).add(CreateLang.text("%"))
                 .style(tooltipColor).forGoggles(tooltip);
 
         CreateLang.builder()
-                .add(Component.translatable("createkinetic.gui.goggles.thruster.thrust_output"))
+                .add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.thrust_output"))
                 .style(ChatFormatting.WHITE)
                 .forGoggles(tooltip);
 
         CreateLang.builder()
                 .add(Component.literal("  "))
-                .add(Component.translatable("createkinetic.tooltip.thrust1").withStyle(ChatFormatting.GRAY))
+                .add(Component.translatable(Northstar.MOD_ID+".tooltip.thrust1").withStyle(ChatFormatting.GRAY))
                 .add(Component.literal(String.format(Locale.ROOT, "%.2f", this.getDisplayedThrustPnForTooltip() / getThrustUnitsPerKn())).withStyle(ChatFormatting.AQUA))
                 .add(Component.literal(" pN").withStyle(ChatFormatting.GRAY))
                 .forGoggles(tooltip);

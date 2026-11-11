@@ -1,8 +1,10 @@
 package com.lightning.northstar.block.tech.thruster;
 
+import com.lightning.northstar.Northstar;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.content.NorthstarBlockEntityTypes;
-import com.lightning.northstar.content.NorthstarFluids;
+import com.lightning.northstar.content.NorthstarTags.NorthstarFluidTags;
+import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -35,6 +37,9 @@ import java.util.Locale;
 public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     public static final int MAX_WIDTH = 3;
 
+    private static final BehaviourType<SmartFluidTankBehaviour> FUEL_TANK = new BehaviourType<>("Fuel");
+    private static final BehaviourType<SmartFluidTankBehaviour> OXIDIZER_TANK = new BehaviourType<>("Oxidizer");
+
     public SmartFluidTankBehaviour tank;
     public SmartFluidTankBehaviour oxidizerTank;
 
@@ -62,15 +67,14 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
         super.addBehaviours(behaviours);
-        tank = SmartFluidTankBehaviour.single(this, getBaseTankCapacityMb());
+        tank = new SmartFluidTankBehaviour(FUEL_TANK, this, 1, getBaseTankCapacityMb(), false);
         behaviours.add(tank);
         tank.getPrimaryHandler().setValidator(stack -> ThrusterFuelManager.getProperties(stack.getFluid()) != null);
 
-        if (supportsMultiblock()) {
-            oxidizerTank = SmartFluidTankBehaviour.single(this, getBaseTankCapacityMb());
-            behaviours.add(oxidizerTank);
-            oxidizerTank.getPrimaryHandler().setValidator(stack -> stack.getFluid() == NorthstarFluids.LIQUID_OXYGEN.get().getSource() || stack.getFluid() == NorthstarFluids.LIQUID_OXYGEN.get());
-        }
+        oxidizerTank = new SmartFluidTankBehaviour(OXIDIZER_TANK, this, 1, getBaseTankCapacityMb(), false);
+        behaviours.add(oxidizerTank);
+        oxidizerTank.getPrimaryHandler().setValidator(stack ->
+                NorthstarFluidTags.C_OXYGEN.matches(stack) || NorthstarFluidTags.C_LIQUID_OXYGEN.matches(stack));
     }
 
 
@@ -182,6 +186,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         List<RocketThrusterBlockEntity> members = new ArrayList<>(size * size * size);
         RocketThrusterBlockEntity controller = null;
         FluidStack totalFuel = FluidStack.EMPTY;
+        FluidStack totalOxidizer = FluidStack.EMPTY;
         for (int x = 0; x < size; x++) {
             for (int y = 0; y < size; y++) {
                 for (int z = 0; z < size; z++) {
@@ -194,6 +199,10 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                         totalFuel = mergeFluid(totalFuel, t.tank.getPrimaryHandler().getFluid());
                         t.tank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
                     }
+                    if (t.oxidizerTank != null) {
+                        totalOxidizer = mergeFluid(totalOxidizer, t.oxidizerTank.getPrimaryHandler().getFluid());
+                        t.oxidizerTank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
+                    }
                 }
             }
         }
@@ -203,6 +212,10 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         if (controller.tank != null) {
             controller.tank.getPrimaryHandler().setCapacity(newCap);
             controller.tank.getPrimaryHandler().setFluid(trimToCapacity(totalFuel, newCap));
+        }
+        if (controller.oxidizerTank != null) {
+            controller.oxidizerTank.getPrimaryHandler().setCapacity(newCap);
+            controller.oxidizerTank.getPrimaryHandler().setFluid(trimToCapacity(totalOxidizer, newCap));
         }
 
         for (RocketThrusterBlockEntity t : members) {
@@ -233,6 +246,13 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             tank.getPrimaryHandler().setCapacity(getBaseTankCapacityMb());
         }
 
+        FluidStack oxidizerPool = FluidStack.EMPTY;
+        if (oxidizerTank != null) {
+            oxidizerPool = oxidizerTank.getPrimaryHandler().getFluid().copy();
+            oxidizerTank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
+            oxidizerTank.getPrimaryHandler().setCapacity(getBaseTankCapacityMb());
+        }
+
         for (int x = 0; x < size; x++) {
             for (int y = 0; y < size; y++) {
                 for (int z = 0; z < size; z++) {
@@ -244,6 +264,12 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                         FluidStack slice = new FluidStack(fuelPool.getFluid(), take);
                         t.tank.getPrimaryHandler().fill(slice, IFluidHandler.FluidAction.EXECUTE);
                         fuelPool.shrink(take);
+                    }
+                    if (t.oxidizerTank != null && !oxidizerPool.isEmpty()) {
+                        int take = Math.min(getBaseTankCapacityMb(), oxidizerPool.getAmount());
+                        FluidStack slice = new FluidStack(oxidizerPool.getFluid(), take);
+                        t.oxidizerTank.getPrimaryHandler().fill(slice, IFluidHandler.FluidAction.EXECUTE);
+                        oxidizerPool.shrink(take);
                     }
                     t.controllerPos = null;
                     t.width = 1;
@@ -286,16 +312,17 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
         IFluidHandler fuel = ctrl.tank.getPrimaryHandler();
         IFluidHandler ox = (ctrl.oxidizerTank != null) ? ctrl.oxidizerTank.getPrimaryHandler() : null;
+        IFluidHandler combined = (ox != null) ? new MultiFluidHandler(fuel, ox) : fuel;
 
         if (!ctrl.isMultiblock()) {
             if (side == null || side == getFluidCapSide()) {
-                return fuel;
+                return combined;
             }
             return null;
         }
 
         if (side == null) {
-            return (ox != null) ? new MultiFluidHandler(fuel, ox) : fuel;
+            return combined;
         }
 
         if (!isFrontLayerCell(ctrl, ctrl.getBlockState().getValue(AbstractThrusterBlock.FACING))) return null;
@@ -304,7 +331,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             return null;
         }
 
-        return (ox != null) ? new MultiFluidHandler(fuel, ox) : fuel;
+        return combined;
     }
 
     @Override
@@ -363,10 +390,13 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     protected void updateSingleThrust(BlockState currentBlockState) {
         final double prevConsumedMbPerTick = lastConsumedMbPerTick;
+        final double prevOxidizerConsumedMbPerTick = lastOxidizerConsumedMbPerTick;
         final int prevFuelAmount = tank != null ? tank.getPrimaryHandler().getFluidAmount() : 0;
+        final int prevOxidizerAmount = oxidizerTank != null ? oxidizerTank.getPrimaryHandler().getFluidAmount() : 0;
         float thrust = 0;
         float currentPower = getPower();
         lastConsumedMbPerTick = 0.0d;
+        lastOxidizerConsumedMbPerTick = 0.0d;
         if (isWorking() && currentPower > 0) {
             FluidThrusterProperties properties = getFuelProperties(fluidStack().getFluid());
             float obstructionEffect = calculateObstructionEffect();
@@ -379,12 +409,20 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                 FluidStack drainedStack = tank.getPrimaryHandler().drain(consumption, IFluidHandler.FluidAction.EXECUTE);
                 int fuelConsumed = drainedStack.getAmount();
 
-                if (fuelConsumed > 0 || (consumption == 0 && !fluidStack().isEmpty())) {
+                // Single thrusters burn oxidizer in 1:1 lockstep with fuel.
+                int oxConsumption = consumeOxidizerWithAccumulator(requestedConsumption);
+                FluidStack oxidizerDrained = (oxidizerTank != null)
+                        ? oxidizerTank.getPrimaryHandler().drain(oxConsumption, IFluidHandler.FluidAction.EXECUTE)
+                        : FluidStack.EMPTY;
+                lastOxidizerConsumedMbPerTick = (double) oxidizerDrained.getAmount() / (double) tickRate;
+
+                if ((fuelConsumed > 0 || (consumption == 0 && !fluidStack().isEmpty()))
+                        && (oxidizerDrained.getAmount() > 0 || (oxConsumption == 0 && validOxidizer()))) {
                     // Keep thrust continuous for sub-1 mB windows: accumulator-based drain can
-                    // legitimately round to 0 for this update while fuel is still available.
-                    float consumptionRatio = consumption > 0
-                            ? (float) fuelConsumed / (float) consumption
-                            : 1.0f;
+                    // legitimately round to 0 for this update while fluid is still available.
+                    float fuelRatio = consumption > 0 ? (float) fuelConsumed / (float) consumption : 1.0f;
+                    float oxRatio = oxConsumption > 0 ? (float) oxidizerDrained.getAmount() / (float) oxConsumption : 1.0f;
+                    float consumptionRatio = Math.min(fuelRatio, oxRatio);
                     float fuelEfficiency = ThrusterFuelManager.getEfficiency(fluidStack().getFluid());
                     float baseThrustPn = (float) (getBaseThrust() * getThrustUnitsPerKn());
                     baseThrustPn *= (float) calculateAtmosphericFactor();
@@ -394,7 +432,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             }
         }
         setThrustAndSync(thrust);
-        if (didSingleTooltipTelemetryChange(prevConsumedMbPerTick, prevFuelAmount)) {
+        if (didSingleTooltipTelemetryChange(prevConsumedMbPerTick, prevOxidizerConsumedMbPerTick, prevFuelAmount, prevOxidizerAmount)) {
             setChanged();
             notifyUpdate();
         }
@@ -491,12 +529,20 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         isThrustDirty = false;
     }
 
-    private boolean didSingleTooltipTelemetryChange(double prevConsumedMbPerTick, int prevFuelAmount) {
+    private boolean didSingleTooltipTelemetryChange(double prevConsumedMbPerTick, double prevOxidizerConsumedMbPerTick,
+                                                    int prevFuelAmount, int prevOxidizerAmount) {
         if (Math.abs(lastConsumedMbPerTick - prevConsumedMbPerTick) > 1e-4d) {
             return true;
         }
+        if (Math.abs(lastOxidizerConsumedMbPerTick - prevOxidizerConsumedMbPerTick) > 1e-4d) {
+            return true;
+        }
         int fuelAmountNow = tank != null ? tank.getPrimaryHandler().getFluidAmount() : 0;
-        return fuelAmountNow != prevFuelAmount;
+        if (fuelAmountNow != prevFuelAmount) {
+            return true;
+        }
+        int oxidizerAmountNow = oxidizerTank != null ? oxidizerTank.getPrimaryHandler().getFluidAmount() : 0;
+        return oxidizerAmountNow != prevOxidizerAmount;
     }
 
     private boolean didMultiTooltipTelemetryChange(double prevConsumedMbPerTick, double prevOxidizerConsumedMbPerTick,
@@ -701,7 +747,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Override
     protected boolean isWorking() {
-        return validFluid();
+        return validFluid() && validOxidizer();
     }
 
     @Override
@@ -834,15 +880,17 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     @Override
     protected LangBuilder getGoggleStatus() {
         if (fluidStack().isEmpty()) {
-            return CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.status.no_fuel")).style(ChatFormatting.RED);
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status.no_fuel")).style(ChatFormatting.RED);
         } else if (!validFluid()) {
-            return CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.status.wrong_fuel")).style(ChatFormatting.RED);
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status.wrong_fuel")).style(ChatFormatting.RED);
+        } else if (!validOxidizer()) {
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status.no_oxidizer")).style(ChatFormatting.RED);
         } else if (!isPowered()) {
-            return CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.status.not_powered")).style(ChatFormatting.GOLD);
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status.not_powered")).style(ChatFormatting.GOLD);
         } else if (getEmptyBlocks() == 0) {
-            return CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.obstructed")).style(ChatFormatting.RED);
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.obstructed")).style(ChatFormatting.RED);
         } else {
-            return CreateLang.builder().add(Component.translatable("createkinetic.gui.goggles.thruster.status.working")).style(ChatFormatting.GREEN);
+            return CreateLang.builder().add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.status.working")).style(ChatFormatting.GREEN);
         }
     }
 
@@ -872,10 +920,10 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                 boolean hasOx = ctrl.validOxidizer();
                 // Header line for base multiblock savings (always active for multiblocks).
                 CreateLang.builder()
-                        .add(Component.translatable("createkinetic.gui.goggles.thruster.bulk_bonus"))
+                        .add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.bulk_bonus"))
                         .text(":")
                         .space()
-                        .add(Component.translatable("createkinetic.gui.goggles.thruster.bulk_bonus_active").withStyle(ChatFormatting.GREEN))
+                        .add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.bulk_bonus_active").withStyle(ChatFormatting.GREEN))
                         .style(ChatFormatting.AQUA)
                         .forGoggles(tooltip);
 
@@ -895,7 +943,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                             .add(Component.literal("Oxidizer Bonus: ").withStyle(ChatFormatting.GRAY))
                             .add(hasOx
                                     ? Component.literal("-" + oxSavePct + "%").withStyle(ChatFormatting.AQUA)
-                                    : Component.translatable("createkinetic.gui.goggles.thruster.bulk_bonus_inactive").withStyle(ChatFormatting.RED))
+                                    : Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.bulk_bonus_inactive").withStyle(ChatFormatting.RED))
                             .forGoggles(tooltip);
                 }
 
@@ -904,11 +952,11 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
                 if (thrustBonusPct > 0) {
                     CreateLang.builder()
                             .add(Component.literal("  "))
-                            .add(Component.translatable("createkinetic.gui.goggles.thruster.thrust_bonus").withStyle(ChatFormatting.GRAY))
+                            .add(Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.thrust_bonus").withStyle(ChatFormatting.GRAY))
                             .add(Component.literal(": ").withStyle(ChatFormatting.GRAY))
                             .add(hasOx
                                     ? Component.literal("+" + thrustBonusPct + "%").withStyle(ChatFormatting.AQUA)
-                                    : Component.translatable("createkinetic.gui.goggles.thruster.bulk_bonus_inactive").withStyle(ChatFormatting.RED))
+                                    : Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.bulk_bonus_inactive").withStyle(ChatFormatting.RED))
                             .forGoggles(tooltip);
                 }
             }
@@ -918,13 +966,13 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
         // --- Fuel tank (always shown) ---
         addFluidContainerTooltip(tooltip,
-                Component.translatable("createkinetic.gui.goggles.thruster.fuel_label"),
+                Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.fuel_label"),
                 ctrl.tank.getPrimaryHandler(), ctrl.lastConsumedMbPerTick);
 
-        // --- Oxidizer tank: multiblock only ---
-        if (ctrl.isMultiblock() && ctrl.oxidizerTank != null) {
+        // --- Oxidizer tank: required for all sizes ---
+        if (ctrl.oxidizerTank != null) {
             addFluidContainerTooltip(tooltip,
-                    Component.translatable("createkinetic.gui.goggles.thruster.oxidizer_label"),
+                    Component.translatable(Northstar.MOD_ID+".gui.goggles.thruster.oxidizer_label"),
                     ctrl.oxidizerTank.getPrimaryHandler(), ctrl.lastOxidizerConsumedMbPerTick);
         }
     }

@@ -1,18 +1,18 @@
 # Module: Thrusters
 
-The mod has two thruster variants that share a single implementation:
+The mod has one thruster block:
 
 | Block | Block entity | Thrust source | Contraption behaviour |
 | --- | --- | --- | --- |
-| `northstar:rocket_thruster` | `RocketThrusterBlockEntity` | `rocketThruster*` config | yes (`RocketThrusterMovementBehaviour`) |
-| `northstar:liquid_thruster` | `LiquidThrusterBlockEntity` | `liquidThruster*` config | no |
+| `northstar:rocket_thruster` | `RocketThrusterBlockEntity` | `thruster*` config | yes (`RocketThrusterMovementBehaviour`) |
 
-Both extend the same base classes:
+It extends the shared base classes:
 
-- `block/tech/thruster/ThrusterBlock` — abstract `DirectionalBlock` (`IBE<T>`, `IWrenchable`).
-- `block/tech/thruster/ThrusterBlockEntity` — abstract `SmartBlockEntity` containing all
+- `block/tech/thruster/AbstractThrusterBlock` / `ThrusterBlock` — abstract + concrete
+  `DirectionalBlock` (`IBE<T>`, `IWrenchable`).
+- `block/tech/thruster/AbstractThrusterBlockEntity` — abstract `SmartBlockEntity` containing all
   multiblock, fuel, redstone, particle and physics logic.
-- `block/tech/thruster/ThrusterRenderer` — abstract `SmartBlockEntityRenderer` that renders
+- `block/tech/thruster/RocketThrusterRenderer` — `SmartBlockEntityRenderer` that renders
   the assembled multiblock.
 - `block/tech/thruster/ThrusterFuelManager` / `ThrusterFuelProperties` — data-driven fuel
   definitions (`data/<ns>/thruster_fuels/*.json`).
@@ -52,23 +52,41 @@ basis on the `FACING.getOpposite()` side for air-clearance checks and plumes.
   compatible thruster exists. A layer must be complete (`W×W`) before the next layer is
   considered; the found length must be `≥ W`.
 - Members store `width`, `length` and (for non-controllers) `controllerPos`. The controller
-  owns the merged fluid buffer; on assembly, member tanks are pooled into the controller
-  (aborting if the members hold different fluid types).
+  owns the merged fluid buffers; on assembly, both member fuel **and** oxidizer tanks are
+  pooled into the controller's tanks (aborting if the members hold different fluid types).
 - The `multi` blockstate property hides the members' static models; the controller's
   block entity renderer draws the assembled model.
-- Validation runs every 20 ticks; invalid assemblies disassemble and distribute fluid back
-  into members. `onRemove` of any member disassembles the whole multiblock.
+- Validation runs every 20 ticks; invalid assemblies disassemble and distribute both fuel and
+  oxidizer back into members. `onRemove` of any member disassembles the whole multiblock.
 
 ## Fuel and oxidizer
 
-- Two `SmartFluidTankBehaviour`s: `FUEL_TANK` (validated against `ThrusterFuelManager`) and
-  `OXIDIZER_TANK` (validated against `NorthstarFluidTags.C_OXYGEN` / `C_LIQUID_OXYGEN`).
+- Every thruster (single-block included) has two `SmartFluidTankBehaviour`s: a fuel tank
+  (validated against `ThrusterFuelManager`) and an oxidizer tank (validated to any fluid in
+  the `c:oxygen` or `c:liquid_oxygen` tags, i.e. oxygen gas **and** liquid oxygen). Both have
+  capacity `thrusterFuelTankCapacityMb` (default 1000 mB) for a single block; multiblocks
+  scale the controller tanks by `W²·L`.
+- Each tank uses its own named `BehaviourType` (`"Fuel"` / `"Oxidizer"`). Create's
+  `SmartFluidTankBehaviour.single(...)` factory shares one static type, so two `.single()`
+  tanks in a single block entity would collide in the behaviour map and NBT key; distinct
+  types are required for both tanks to tick, save and load.
+- **Both fluids are required to operate at every size.** `isWorking()` is
+  `validFluid() && validOxidizer()`; when either tank is empty the thruster produces no
+  thrust, plume or damage. Goggle status reports a dedicated `no_oxidizer` state after the
+  fuel-empty/wrong-fuel states (lang key
+  `createkinetic.gui.goggles.thruster.status.no_oxidizer`).
 - A single fuel source can be either an explicit `thruster_fuels` JSON entry or fall back to
   any fluid accepted by `FuelType`.
+- Single thrusters burn fuel and oxidizer in **1:1 lockstep** (same requested consumption,
+  same accumulator logic); effective thrust scales with the smaller of the two drain ratios.
+- Multiblock thrusters use the bulk efficiency multipliers: fuel cost is scaled by
+  `multiblock{2x,3x}FuelEfficiency` and oxidizer cost by
+  `multiblock{2x,3x}OxidizerEfficiency`, with matching thrust multipliers. Since oxidizer is
+  now required, these multipliers act on a mandatory drain rather than an optional bonus.
 - Thrust = `baseThrust · W² · L · widthMultiplier · fuel.thrustMultiplier · power`, where
-  `power = maxRedstoneSignal / 15` across all members.
-- Fuel consumption scales the same way; both tanks drain in lockstep.
-- `MultiFluidHandler` exposes fuel and oxidizer through the block's fluid capability.
+  `power = maxRedstoneSignal / 15` across all members; consumption scales the same way.
+- `MultiFluidHandler` exposes fuel and oxidizer through the block's fluid capability on
+  every size (single thrusters expose it only on the `FACING` face, i.e. the body side).
 
 ## Rendering
 
@@ -104,18 +122,24 @@ Blockstate variants for the single (`W = 1`) model use the vanilla up-authored m
   exhaust end of a `FACING == UP` thruster column (skipping members whose exhaust neighbour
   is also a thruster).
 
-## Configuration (`server.thruster`)
+## Configuration (`server.thruster` + `server.multiblockThruster`)
 
 ```
-rocketThrusterBaseThrust / rocketThrusterFuelUsage / rocketThrusterFuelCapacity / rocketThrusterMaxLength
-liquidThrusterBaseThrust / liquidThrusterFuelUsage / liquidThrusterFuelCapacity / liquidThrusterMaxLength
+thruster: baseThrust, obstructionScanLength, obstructionIgnoreOtherSubLevels, fuelTankCapacityMb,
+          fuelMbPerTickAtFullThrottle, damageEntities, clientParticlesPerTick
+multiblockThruster: multiblock2x/3xThrustMultiplier, multiblock2x/3xFuelEfficiency,
+                    multiblock2x/3xOxidizerEfficiency
 ```
+
+Defaults live in `ServerConfig.java`; a runtime-generated `config/Northstar/server.json` is
+written on first launch. The physics sub-group (`thrusterPhysics`) covers nozzle offset and
+force application.
 
 ## Registration points
 
-- `content/NorthstarBlocks`: `ROCKET_THRUSTER`, `LIQUID_THRUSTER`.
+- `content/NorthstarBlocks`: `ROCKET_THRUSTER`.
 - `content/NorthstarBlockEntityTypes`: matching block entity entries + renderers.
 - `content/NorthstarPartialModels`: four partials per thruster (`2×2×2` / `3×3×3` × body/cap).
-- `events/NorthstarCommonEvents`: `registerCapabilities` for both thrusters.
+- `events/NorthstarCommonEvents`: `registerCapabilities` for the rocket thruster.
 - `Northstar`: `ThrusterFuelManager` resource reload listener.
 - `content/recipe/NorthstarStandardRecipeGen`: crafting recipes.
