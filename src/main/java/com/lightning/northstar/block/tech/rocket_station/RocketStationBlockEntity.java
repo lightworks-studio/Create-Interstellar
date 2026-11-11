@@ -1,30 +1,36 @@
 package com.lightning.northstar.block.tech.rocket_station;
 
-import com.lightning.northstar.block.tech.thruster.SimulatedThrustAdapter;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.contraption.rocket.RocketContraption;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
 import com.lightning.northstar.contraption.rocket.RocketDestination;
 import com.lightning.northstar.util.BetterSimpleContainer;
+import com.mojang.logging.LogUtils;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.content.contraptions.IDisplayAssemblyExceptions;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
+import dev.egg.dimensionalsable.SubLevelWarper;
+import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
+import dev.ryanhcode.sable.companion.math.JOMLConversion;
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaterniond;
 import org.joml.Vector3d;
+import org.slf4j.Logger;
 
 import java.util.List;
 
@@ -33,21 +39,55 @@ public class RocketStationBlockEntity extends SmartBlockEntity
         IDisplayAssemblyExceptions,
         dev.ryanhcode.sable.api.block.BlockEntitySubLevelActor {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
+
     public final SimpleContainer container = new BetterSimpleContainer(2);
     public AssemblyException lastException;
     public RocketDestination destination;
     public long lastTeleportTime;
 
     @Override
-    public void sable$physicsTick(final dev.ryanhcode.sable.sublevel.ServerSubLevel subLevel, final dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle handle, final double timeStep) {
+    public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
         if (lastTeleportTime > 40 && //tick cooldown
                 subLevel.latestLinearVelocity.y > 0.015
                 && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()) {
-            System.out.println("DIMENSION CHANGE!!!");
             lastTeleportTime = 0;
+            warpSublevelToDestination(subLevel, handle);
         }
         lastTeleportTime++;
-//        subLevel.getLevel().getGameTime()
+    }
+
+    private void warpSublevelToDestination(final ServerSubLevel subLevel, final RigidBodyHandle handle) {
+        if (destination == null) {
+            return;
+        }
+
+        final ServerLevel destLevel = subLevel.getLevel().getServer().getLevel(destination.dimKey());
+        if (destLevel == null) {
+            LOGGER.warn("Rocket station at {} cannot warp: dimension {} is not loaded", worldPosition, destination.dim());
+            return;
+        }
+
+        // Destination waypoint center, or the ship's current position if no waypoint is set
+        final Vector3d destPos = destination.pos() != null
+                ? JOMLConversion.atCenterOf(destination.pos())
+                : new Vector3d(subLevel.logicalPose().position());
+
+        // Flip the rocket: its nose (local +Y) must point in the opposite world direction after the warp,
+        // so a ship that entered the atmosphere nose-up emerges nose-down
+        final Quaterniond orientation = subLevel.logicalPose().orientation();
+        final Vector3d forward = new Vector3d(0, 1, 0);
+        orientation.transform(forward);
+        final Vector3d refAxis = Math.abs(forward.y) > 0.99 ? new Vector3d(1, 0, 0) : new Vector3d(0, 1, 0);
+        final Vector3d flipAxis = new Vector3d().cross(forward, refAxis).normalize();
+        final Quaterniond flippedOrientation = new Quaterniond().fromAxisAngleRad(flipAxis, Math.PI).mul(orientation);
+
+        final int warped = SubLevelWarper.warpConnectedSubLevels(subLevel, destLevel, destPos, flippedOrientation);
+
+        // Zero the velocity so the ship does not immediately re-trigger the warp in the new dimension
+        handle.addLinearAndAngularVelocity(handle.getLinearVelocity(new Vector3d()).negate(), handle.getAngularVelocity(new Vector3d()).negate());
+
+        LOGGER.info("Rocket station at {} warped {} sub-level(s) to {} @ [{}]", worldPosition, warped, destination.dim(), destPos);
     }
 
 

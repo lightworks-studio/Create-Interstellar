@@ -46,3 +46,41 @@ Related hook: `sable$tick(ServerSubLevel)` — once per **server game tick**
 
 This is the mechanism that feeds thrust into Sable's physics world so
 contraptions accelerate/rotate in flight.
+
+## Dimensional-Sable — cross-dimension sub-level warping
+
+Notes on how this mod uses [Dimensional-Sable](https://modrinth.com/mod/dimensional-sable)
+(`dev.egg.dimensionalsable`, pulled from Modrinth maven and jar-in-jarred in
+`build.gradle.kts`). It extends Sable by allowing whole sub-levels (plus their
+connected sub-levels and the entities inside them) to be teleported between
+dimensions.
+
+### `SubLevelWarper.warpConnectedSubLevels(...)`
+
+- Signature used: `int warpConnectedSubLevels(ServerSubLevel, ServerLevel dest, Vector3d pos, Quaterniond orient)` —
+  returns the number of sub-levels warped.
+- The position/orientation are the new **world** pose in the destination
+  dimension (JOML types).
+
+### Usage in this mod (rocket station)
+
+`RocketStationBlockEntity.sable$physicsTick` watches for a ship leaving the
+atmosphere (`latestLinearVelocity.y > 0.015` and world Y above
+`NorthstarConfigs.server().atmosphereTeleportHeight`, with a ~40-physics-tick
+cooldown). When triggered it warps the sub-level to the `RocketDestination`
+configured in the station:
+
+- Target dimension comes from `destination.dimKey()`; the target position is
+  the waypoint block pos center (`JOMLConversion.atCenterOf`), or the ship's
+  current position when no waypoint is set.
+- **Orientation flip:** the rocket's nose is local +Y. The warp composes a
+  180° rotation (axis perpendicular to the current world-facing direction)
+  with the current orientation, so a ship that entered nose-up emerges
+  nose-down.
+- After warping, linear and angular velocity are zeroed via
+  `RigidBodyHandle.addLinearAndAngularVelocity(negated)` — otherwise the
+  preserved upward velocity would immediately re-trigger the warp in the new
+  dimension.
+
+Reference implementation for the same API: `/northstar warp` command
+(`WarpSubLevelCommand`).
