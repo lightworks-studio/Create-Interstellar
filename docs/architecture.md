@@ -13,6 +13,7 @@ technology. The code is organised around Create's registrate-based registration 
 | Blocks & block entities | `block.simple`, `block.tech.*` | Gameplay blocks and their `SmartBlockEntity` logic. |
 | Contraptions | `contraption` | Create contraption assemblies (rockets, physics, movement behaviours). |
 | Worldgen & planets | `world`, `planet` | Dimensions, biomes, planet properties and data-driven planet definitions. |
+| Commands | `commands` | In-game commands (e.g. `/northstar warp` for cross-dimension sub-level teleportation via Dimensional Sable). |
 | Compat | `compat`, `ponder`, `data` | JEI, Ponder, Sable physics and data generation. |
 
 ## Data flow
