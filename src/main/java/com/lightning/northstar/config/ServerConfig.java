@@ -88,6 +88,16 @@ public class ServerConfig extends ConfigBase {
             "Shared thrust unit scale: how many internal thrust units correspond to 1 kN.",
             "Used by physics conversion, tooltip display, and ComputerCraft kN helpers.");
 
+    public final ConfigGroup reactionWheel = group(1, "reactionWheel", "Reaction wheel (gyroscope) properties");
+
+    public final ConfigFloat reactionWheelReferenceRpm = f(256f, 1f, 4096f, "referenceRpm", "RPM at which the gyroscope reaches 100% effectiveness. Above this, output is capped.");
+    public final ConfigFloat reactionWheelOmegaTarget = f(3f, 0.1f, 10f, "omegaTarget", "Target natural frequency of the closed loop in rad/s. Higher = snappier correction. Goes up to ~10 before discretization starts to bite.");
+    public final ConfigFloat reactionWheelDampingRatio = f(0.9f, 0.1f, 2f, "dampingRatio", "Target damping ratio of the closed loop. 0.9 settles fast with negligible overshoot, 1.0 is critically damped (no overshoot, slower).");
+    public final ConfigFloat reactionWheelAuthorityPerUnit = f(5000f, 100f, 1_000_000f, "authorityPerUnit", "How much ship inertia (kg*m^2) one gyroscope fully stabilizes at reference RPM. Bigger ships need more gyros.");
+    public final ConfigFloat reactionWheelFeedForwardGain = f(1f, 0f, 1f, "feedForwardGain", "Fraction of the observed external disturbance the controller cancels via feed-forward. 1.0 = full cancellation, 0.0 = disable (PD loop only).");
+    public final ConfigFloat reactionWheelFeedForwardSmoothing = f(0.2f, 0.01f, 1f, "feedForwardSmoothing", "Exponential moving average factor for the disturbance estimate. Lower = smoother but slower to track changes.");
+    public final ConfigFloat reactionWheelStressImpact = f(16f, 0f, 1024f, "stressImpact", "Base stress impact in SU per RPM. Total SU draw is roughly impact * |RPM|. Set to 0 to disable.");
+
     public final ConfigGroup thrusterFuelProperties = group(2, "fuelProperties",
             "Fuel properties by fluid id. Configure efficiency and burn rate separately as percentages.");
 

@@ -19,6 +19,7 @@ import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerMovingIntera
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerBlock;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerMovementBehaviour;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerMovingInteractionBehaviour;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelBlock;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsBlock;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsInteractionBehaviour;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsMovementBehaviour;
@@ -33,6 +34,7 @@ import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegul
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorMovementBehaviour;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorMovingInteractionBehaviour;
 import com.lightning.northstar.block.tech.thruster.ThrusterBlock;
+import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.content.NorthstarTags.NorthstarBlockTags;
 import com.lightning.northstar.content.NorthstarTags.NorthstarItemTags;
 import com.lightning.northstar.content.world.planet.core.NorthstarVegetationConfiguredFeatures;
@@ -53,6 +55,7 @@ import com.simibubi.create.content.processing.basin.BasinMovementBehaviour;
 import com.simibubi.create.foundation.data.BuilderTransformers;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.data.SharedProperties;
+import com.simibubi.create.foundation.data.TagGen;
 import com.tterrag.registrate.providers.ProviderType;
 import com.tterrag.registrate.providers.loot.RegistrateBlockLootTables;
 import com.tterrag.registrate.util.entry.BlockEntry;
@@ -103,6 +106,14 @@ public class NorthstarBlocks {
     static {
         REGISTRATE.setCreativeTab(NorthstarCreativeModeTab.BLOCKS);
     }
+
+    public static final BlockEntry<ReactionWheelBlock> REACTION_WHEEL = REGISTRATE
+            .block("reaction_wheel", ReactionWheelBlock::new).initialProperties(SharedProperties::softMetal)
+            .properties((p) -> p.noOcclusion())
+            .transform(TagGen.axeOrPickaxe())
+            .onRegister((block) -> BlockStressValues.IMPACTS.register(block, () -> NorthstarConfigs.server().reactionWheelStressImpact.get()))
+            .blockstate(NorthstarDataGenModels.manualModel())
+            .simpleItem().register();
 
     public static final BlockEntry<TelescopeBlock> TELESCOPE = REGISTRATE
             .block("telescope", TelescopeBlock::new)

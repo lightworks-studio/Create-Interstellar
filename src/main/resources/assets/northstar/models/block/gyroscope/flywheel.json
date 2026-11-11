@@ -1,0 +1,14 @@
+{
+	"parent": "block/block",
+	"loader": "neoforge:obj",
+	"flip_v": true,
+	"automatic_culling": false,
+	"render_type": "minecraft:cutout_mipped",
+	"model": "northstar:models/block/gyroscope/flywheel.obj",
+	"textures": {
+		"0": "northstar:block/flywheel",
+		"1": "create:block/axis",
+		"2": "create:block/axis_top",
+		"particle": "northstar:block/flywheel"
+	}
+}

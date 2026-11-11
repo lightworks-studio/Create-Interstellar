@@ -27,6 +27,8 @@ import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerRenderer;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerRenderer;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerVisual;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelBlockEntity;
+import com.lightning.northstar.block.tech.reaction_wheel.ReactionWheelRenderer;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsBlockEntity;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsRenderer;
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlockEntity;
@@ -163,6 +165,13 @@ public class NorthstarBlockEntityTypes {
             .blockEntity("rocket_thruster", (BlockEntityFactory<RocketThrusterBlockEntity>) RocketThrusterBlockEntity::new)
             .validBlocks(NorthstarBlocks.ROCKET_THRUSTER)
             .renderer(() -> RocketThrusterRenderer::new)
+            .register();
+
+
+    public static final BlockEntityEntry<ReactionWheelBlockEntity> GYROSCOPE = REGISTRATE
+            .blockEntity("gyroscope", ReactionWheelBlockEntity::new)
+            .validBlocks(NorthstarBlocks.REACTION_WHEEL)
+            .renderer(() -> ReactionWheelRenderer::new)
             .register();
 
     public static final BlockEntityEntry<BracketedKineticBlockEntity> BRACKETED_KINETIC = REGISTRATE

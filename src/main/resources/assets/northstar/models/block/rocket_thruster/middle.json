@@ -3,20 +3,20 @@
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {
-		"1": "northstar:block/rocket_thruster/rocket_thruster_1",
-		"particle": "northstar:block/rocket_thruster/rocket_thruster_1"
+		"1": "northstar:block/rocket_thruster/rocket_thruster",
+		"particle": "northstar:block/rocket_thruster/rocket_thruster"
 	},
 	"elements": [
 		{
 			"from": [0, 0, 0],
 			"to": [16, 16, 16],
 			"faces": {
-				"north": {"uv": [8, 8, 16, 16], "texture": "#1"},
-				"east": {"uv": [8, 8, 16, 16], "texture": "#1"},
-				"south": {"uv": [8, 8, 16, 16], "texture": "#1"},
-				"west": {"uv": [8, 8, 16, 16], "texture": "#1"},
-				"up": {"uv": [0, 8, 8, 16], "texture": "#1"},
-				"down": {"uv": [0, 8, 8, 16], "texture": "#1"}
+				"north": {"uv": [12.25, 8.5, 14.25, 10.5], "texture": "#1"},
+				"east": {"uv": [12.25, 8.5, 14.25, 10.5], "texture": "#1"},
+				"south": {"uv": [12.25, 8.5, 14.25, 10.5], "texture": "#1"},
+				"west": {"uv": [12.25, 8.5, 14.25, 10.5], "texture": "#1"},
+				"up": {"uv": [10.25, 8.5, 12.25, 10.5], "texture": "#1"},
+				"down": {"uv": [10.25, 8.5, 12.25, 10.5], "texture": "#1"}
 			}
 		}
 	]

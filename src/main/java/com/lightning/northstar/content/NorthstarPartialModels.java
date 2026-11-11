@@ -2,6 +2,7 @@ package com.lightning.northstar.content;
 
 import com.lightning.northstar.Northstar;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import net.minecraft.resources.ResourceLocation;
 
 public class NorthstarPartialModels {
 
@@ -45,8 +46,16 @@ public class NorthstarPartialModels {
             ROCKET_THRUSTER_MULTIBLOCK_3X3X3_BODY = block("rocket_thruster/multiblock_3x3x3_body"),
             ROCKET_THRUSTER_MULTIBLOCK_3X3X3_CAP = block("rocket_thruster/multiblock_3x3x3_cap");
 
+    public static final PartialModel GYROSCOPE_FLYWHEEL = block("gyroscope/flywheel");
+    public static final PartialModel GYROSCOPE_INDICATOR = block("gyroscope/indicator");
+    public static final PartialModel REACTION_WHEEL_CORE = partial("reaction_wheel_core");
+
     private static PartialModel block(String path) {
         return PartialModel.of(Northstar.asResource("block/" + path));
+    }
+
+    private static PartialModel partial(String path) {
+        return PartialModel.of(ResourceLocation.fromNamespaceAndPath(Northstar.MOD_ID, "partial/" + path));
     }
 
     private static PartialModel armor(String path) {

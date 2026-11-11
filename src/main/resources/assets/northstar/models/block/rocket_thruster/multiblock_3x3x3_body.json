@@ -23,9 +23,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 0, 14],
-			"to": [16, 1.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, -11.5, 15]},
+			"from": [0, 0, 12],
+			"to": [16, 1.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, -11.5, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 14.125, 9.375, 14.5], "texture": "#0"},
 				"east": {"uv": [12, 15.875, 12.375, 14.625], "rotation": 270, "texture": "#0"},
@@ -37,9 +37,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [14.5, 1.5, 14],
-			"to": [16, 14.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [11.5, -2, 15]},
+			"from": [14.5, 1.5, 12],
+			"to": [16, 14.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [11.5, -2, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 11.875, 12, 14.125], "texture": "#0"},
 				"east": {"uv": [9.75, 15.875, 12, 14.625], "rotation": 270, "texture": "#0"},
@@ -51,9 +51,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 1.5, 14],
-			"to": [1.5, 14.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [-2.5, -2, 15]},
+			"from": [0, 1.5, 12],
+			"to": [1.5, 14.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [-2.5, -2, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 11.875, 12, 14.125], "texture": "#0"},
 				"east": {"uv": [9.75, 15.875, 12, 14.625], "rotation": 270, "texture": "#0"},
@@ -65,9 +65,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 14.5, 14],
-			"to": [16, 16, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, 2.5, 15]},
+			"from": [0, 14.5, 12],
+			"to": [16, 16, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, 2.5, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 11.5, 9.375, 11.875], "texture": "#0"},
 				"east": {"uv": [9.375, 15.875, 9.75, 14.625], "rotation": 270, "texture": "#0"},
@@ -93,9 +93,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [1, 1, 10],
-			"to": [15, 15, 14],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, -0.5, 11]},
+			"from": [1, 1, 9],
+			"to": [15, 15, 13],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, -0.5, 10]},
 			"faces": {
 				"north": {"uv": [12.375, 11.5, 9.375, 14.5], "texture": "#0"},
 				"east": {"uv": [9.375, 15.875, 12.375, 14.625], "rotation": 270, "texture": "#0"},

@@ -10,22 +10,22 @@
 		{
 			"name": "copper_part",
 			"from": [0, 0, 0],
-			"to": [16, 16, 8],
+			"to": [16, 16, 7],
 			"rotation": {"angle": 0, "axis": "y", "origin": [0, 0, 8]},
 			"faces": {
 				"north": {"uv": [4, 6.125, 0, 10.125], "texture": "#0"},
-				"east": {"uv": [6.125, 2.375, 10.125, 4.375], "rotation": 90, "texture": "#0"},
+				"east": {"uv": [6.125, 2.375, 10.125, 4.125], "rotation": 90, "texture": "#0"},
 				"south": {"uv": [4, 6.125, 0, 10.125], "texture": "#0"},
-				"west": {"uv": [10.125, 2.375, 6.125, 4.375], "rotation": 270, "texture": "#0"},
-				"up": {"uv": [10.125, 2.375, 6.125, 4.375], "texture": "#0"},
-				"down": {"uv": [6.125, 2.375, 10.125, 4.375], "rotation": 180, "texture": "#0"}
+				"west": {"uv": [10.125, 2.375, 6.125, 4.125], "rotation": 270, "texture": "#0"},
+				"up": {"uv": [10.125, 2.375, 6.125, 4.125], "texture": "#0"},
+				"down": {"uv": [6.125, 2.375, 10.125, 4.125], "rotation": 180, "texture": "#0"}
 			}
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 0, 13],
-			"to": [16, 1.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, -11.5, 15]},
+			"from": [0, 0, 11],
+			"to": [16, 1.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, -11.5, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 14.125, 9.375, 14.5], "texture": "#0"},
 				"east": {"uv": [12, 15.75, 12.375, 14.625], "rotation": 270, "texture": "#0"},
@@ -37,9 +37,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [14.5, 1.5, 13],
-			"to": [16, 14.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [11.5, -2, 15]},
+			"from": [14.5, 1.5, 11],
+			"to": [16, 14.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [11.5, -2, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 11.875, 12, 14.125], "texture": "#0"},
 				"east": {"uv": [9.75, 15.75, 12, 14.625], "rotation": 270, "texture": "#0"},
@@ -51,9 +51,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 1.5, 13],
-			"to": [1.5, 14.5, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [-2.5, -2, 15]},
+			"from": [0, 1.5, 11],
+			"to": [1.5, 14.5, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [-2.5, -2, 13]},
 			"faces": {
 				"north": {"uv": [9.75, 11.875, 9.375, 14.125], "texture": "#0"},
 				"east": {"uv": [9.75, 15.75, 12, 14.625], "rotation": 270, "texture": "#0"},
@@ -65,9 +65,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [0, 14.5, 13],
-			"to": [16, 16, 18],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, 2.5, 15]},
+			"from": [0, 14.5, 11],
+			"to": [16, 16, 16],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, 2.5, 13]},
 			"faces": {
 				"north": {"uv": [12.375, 11.5, 9.375, 11.875], "texture": "#0"},
 				"east": {"uv": [9.375, 15.75, 9.75, 14.625], "rotation": 270, "texture": "#0"},
@@ -79,9 +79,9 @@
 		},
 		{
 			"name": "nozzle",
-			"from": [1, 1, 8],
-			"to": [15, 15, 13],
-			"rotation": {"angle": 0, "axis": "y", "origin": [0, 0.5, 10]},
+			"from": [1, 1, 7],
+			"to": [15, 15, 12],
+			"rotation": {"angle": 0, "axis": "y", "origin": [0, 0.5, 9]},
 			"faces": {
 				"north": {"uv": [9.125, 9.375, 7.75, 10.75], "texture": "#0"},
 				"east": {"uv": [9.375, 15.75, 12.375, 14.625], "rotation": 270, "texture": "#0"},
