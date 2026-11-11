@@ -41,7 +41,7 @@ Repo: `com.lightning.northstar` (Create Interstellar), NeoForge, Create 6.0.10-2
 ## 3. Corrected plan details (important compile-safety notes)
 
 - **A. Base block `codec()`:** `ThrusterBlock extends DirectionalBlock` **must** declare `MapCodec`/`codec()` (like `OxygenDetectorBlock`).
-- **B. `getControllerBE()` returns the BASE type `ThrusterBlockEntity`** in the base (not a concrete type). Callers needing a concrete type `instanceof`-check.
+- **B. `getControllerBE()` returns the BASE type `RocketThrusterBlockEntity`** in the base (not a concrete type). Callers needing a concrete type `instanceof`-check.
 - **C. No hardcoded `NorthstarBlocks.ROCKET_THRUSTER` in the base.** Use abstract hook `protected abstract boolean isCompatibleBlock(BlockState state)` — Rocket→`ROCKET_THRUSTER`, Liquid→`LIQUID_THRUSTER`. `isThruster`/`isLayerComplete`/`validateMulti` call it.
 - **D. `registerCapabilities` per-subclass** (each registers its own `NorthstarBlockEntityTypes.X`). `NorthstarCommonEvents` calls both.
 - **E. `getBlockEntityType()` override** in each concrete block (`IBE` requires `getBlockEntityClass()` AND `getBlockEntityType()`).
@@ -69,7 +69,7 @@ Repo: `com.lightning.northstar` (Create Interstellar), NeoForge, Create 6.0.10-2
 
 ## 5. NOT DONE (remaining work, in suggested order)
 
-### 5.1 Shared base block entity — `ThrusterBlockEntity` (BIGGEST remaining piece)
+### 5.1 Shared base block entity — `RocketThrusterBlockEntity` (BIGGEST remaining piece)
 Create `src/main/java/com/lightning/northstar/block/tech/thruster/ThrusterBlockEntity.java`, abstract, extracted from `RocketThrusterBlockEntity` (735 lines, `block/tech/rocket_thruster/`). Must:
 - Extend `SmartBlockEntity`, implement `IHaveGoggleInformation`, `BlockEntitySubLevelActor`, `BlockSubLevelAssemblyListener`.
 - Move all shared fields: `width, length, controllerPos, redstoneInput, power, currentThrust, fuelUsageBuffer, oxidizerUsageBuffer, clearBlocks, powerDirty, needsConnectivityUpdate, disassembling, assemblyCooldown`, `fuelTank/oxidizerTank` (`SmartFluidTankBehaviour` + `FUEL_TANK`/`OXIDIZER_TANK` BehaviourTypes).
@@ -112,7 +112,7 @@ Create `block/tech/liquid_thruster/LiquidThrusterBlockEntity.java`:
 Create `block/tech/liquid_thruster/LiquidThrusterBlock.java`:
 - Override `getBlockEntityClass()`→`LiquidThrusterBlockEntity.class`, `getBlockEntityType()`→`NorthstarBlockEntityTypes.LIQUID_THRUSTER.get()`, `isCompatibleBlock(state)`→`state.is(NorthstarBlocks.LIQUID_THRUSTER.get())`.
 
-### 5.6 NEW `ThrusterRenderer` base + concrete renderers
+### 5.6 NEW `RocketThrusterRenderer` base + concrete renderers
 Create `client` base `ThrusterRenderer extends SmartBlockEntityRenderer<ThrusterBlockEntity>` with:
 - abstract `getMultiblockBody(int width)` / `getMultiblockCap(int width)` (return `PartialModel`).
 - shared `renderSafe` (guard `!isController() || !isMultiblock()`), **FACING-aware** (apply FACING rotation to the translate/scale, currently hard-coded `Axis.XP.rotationDegrees(90)` + Y translate).
@@ -217,8 +217,8 @@ Keep all keys; expose as overridable getters in base BE; rocket reads them; liqu
 **Modify (existing):**
 - [ ] `src/main/java/com/lightning/northstar/block/tech/thruster/ThrusterBlock.java` (add `MapCodec`/`codec()`)
 - [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterBlock.java` (re-parent to `ThrusterBlock`, remove `TOP/BOTTOM/MULTI` + `updateConnectivity`)
-- [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterBlockEntity.java` (re-parent to `ThrusterBlockEntity`, drop shared logic, keep rocket-specific overrides)
-- [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterRenderer.java` (re-parent to `ThrusterRenderer` base, FACING-aware)
+- [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterBlockEntity.java` (re-parent to `RocketThrusterBlockEntity`, drop shared logic, keep rocket-specific overrides)
+- [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterRenderer.java` (re-parent to `RocketThrusterRenderer` base, FACING-aware)
 - [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterMovementBehaviour.java` (FACING check replaces `BOTTOM`)
 - [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterFuelManager.java` (delete after move)
 - [ ] `src/main/java/com/lightning/northstar/block/tech/rocket_thruster/RocketThrusterFuelProperties.java` (delete after move)

@@ -21,8 +21,6 @@ import com.lightning.northstar.block.tech.ice_box.IceBoxRenderer;
 import com.lightning.northstar.block.tech.large_fan.LargeFanBlockEntity;
 import com.lightning.northstar.block.tech.large_fan.LargeFanRenderer;
 import com.lightning.northstar.block.tech.large_fan.LargeFanVisual;
-import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterBlockEntity;
-import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterRenderer;
 import com.lightning.northstar.block.tech.oxygen_detector.OxygenDetectorBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerRenderer;
@@ -31,14 +29,14 @@ import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerRenderer;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerVisual;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsBlockEntity;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsRenderer;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterBlockEntity;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterRenderer;
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlockEntity;
 import com.lightning.northstar.block.tech.solar_panel.SolarPanelBlockEntity;
 import com.lightning.northstar.block.tech.solar_panel.SolarPanelRenderer;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorBlockEntity;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorRenderer;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorVisual;
+import com.lightning.northstar.block.tech.thruster.RocketThrusterBlockEntity;
+import com.lightning.northstar.block.tech.thruster.RocketThrusterRenderer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorBlockEntity;
 import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorRenderer;
@@ -46,6 +44,7 @@ import com.simibubi.create.content.kinetics.base.OrientedRotatingVisual;
 import com.simibubi.create.content.kinetics.base.ShaftVisual;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockEntity;
 import com.simibubi.create.content.kinetics.simpleRelays.BracketedKineticBlockEntityRenderer;
+import com.tterrag.registrate.builders.BlockEntityBuilder.BlockEntityFactory;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
 import dev.engine_room.flywheel.lib.model.Models;
 import net.minecraft.core.Direction;
@@ -53,11 +52,6 @@ import net.minecraft.core.Direction;
 import static com.lightning.northstar.Northstar.REGISTRATE;
 
 public class NorthstarBlockEntityTypes {
-
-    /*public static final BlockEntityEntry<OxygenBubbleGeneratorBlockEntity> OXYGEN_BUBBLE_GENERATOR = REGISTRATE
-            .blockEntity("oxygen_bubble_generator", OxygenBubbleGeneratorBlockEntity::new)
-            .validBlocks(NorthstarBlocks.OXYGEN_BUBBLE_GENERATOR)
-            .register();*/
 
     public static final BlockEntityEntry<VenusExhaustBlockEntity> VENUS_EXHAUST = REGISTRATE
             .blockEntity("venus_exhaust", VenusExhaustBlockEntity::new)
@@ -98,11 +92,6 @@ public class NorthstarBlockEntityTypes {
             .validBlocks(NorthstarBlocks.COMBUSTION_ENGINE)
             .renderer(() -> CombustionEngineRenderer::new)
             .register();
-
-    /*public static final BlockEntityEntry<LaserLenseBlockEntity> LASER_LENSE = REGISTRATE
-            .blockEntity("laser_lense", LaserLenseBlockEntity::new)
-            .validBlocks(NorthstarBlocks.LASER_LENSE)
-            .register();*/
 
     public static final BlockEntityEntry<AstronomyTableBlockEntity> ASTRONOMY_TABLE = REGISTRATE
             .blockEntity("astronomy_table", AstronomyTableBlockEntity::new)
@@ -171,15 +160,9 @@ public class NorthstarBlockEntityTypes {
             .register();
 
     public static final BlockEntityEntry<RocketThrusterBlockEntity> ROCKET_THRUSTER = REGISTRATE
-            .blockEntity("rocket_thruster", RocketThrusterBlockEntity::new)
+            .blockEntity("rocket_thruster", (BlockEntityFactory<RocketThrusterBlockEntity>) RocketThrusterBlockEntity::new)
             .validBlocks(NorthstarBlocks.ROCKET_THRUSTER)
             .renderer(() -> RocketThrusterRenderer::new)
-            .register();
-
-    public static final BlockEntityEntry<LiquidThrusterBlockEntity> LIQUID_THRUSTER = REGISTRATE
-            .blockEntity("liquid_thruster", LiquidThrusterBlockEntity::new)
-            .validBlocks(NorthstarBlocks.LIQUID_THRUSTER)
-            .renderer(() -> LiquidThrusterRenderer::new)
             .register();
 
     public static final BlockEntityEntry<BracketedKineticBlockEntity> BRACKETED_KINETIC = REGISTRATE

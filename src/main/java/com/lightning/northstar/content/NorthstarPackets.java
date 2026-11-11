@@ -5,6 +5,7 @@ import com.lightning.northstar.block.tech.atmospheric_concentrator.AtmosphericCo
 import com.lightning.northstar.block.tech.rocket_station.RocketStationEditPacket;
 import com.lightning.northstar.block.tech.telescope.TelescopePrintPacket;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorEditPacket;
+import com.lightning.northstar.block.tech.thruster.SyncThrusterFuelsPacket;
 import com.lightning.northstar.contraption.ActorConfigPacket;
 import com.lightning.northstar.contraption.rocket.packet.RocketDestinationPacket;
 import com.lightning.northstar.contraption.rocket.packet.RocketSeatsPacket;
@@ -17,6 +18,7 @@ import net.createmod.catnip.net.base.CatnipPacketRegistry;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.util.Locale;
 
@@ -35,7 +37,8 @@ public enum NorthstarPackets implements BasePacketPayload.PacketTypeProvider {
     ROCKET_SEATS(RocketSeatsPacket.class, RocketSeatsPacket.STREAM_CODEC),
     ROCKET_SYNC(RocketSyncPacket.class, RocketSyncPacket.STREAM_CODEC),
     ACTOR_CONFIG(ActorConfigPacket.class, ActorConfigPacket.STREAM_CODEC),
-    RELATIVE_TELEPORT(RelativeTeleportPacket.class, RelativeTeleportPacket.STREAM_CODEC);
+    RELATIVE_TELEPORT(RelativeTeleportPacket.class, RelativeTeleportPacket.STREAM_CODEC),
+    SYNC_THRUSTER_FUELS(SyncThrusterFuelsPacket.class, SyncThrusterFuelsPacket.STREAM_CODEC);
 
     public static final int NETWORK_VERSION = 8;
 
@@ -55,6 +58,10 @@ public enum NorthstarPackets implements BasePacketPayload.PacketTypeProvider {
             packetRegistry.registerPacket(packet.type);
         }
         packetRegistry.registerAllPackets();
+    }
+
+    public static void sendToAll(CustomPacketPayload payload) {
+        PacketDistributor.sendToAllPlayers(payload);
     }
 
     @SuppressWarnings("unchecked")

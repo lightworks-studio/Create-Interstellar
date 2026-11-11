@@ -171,15 +171,6 @@ public class NorthstarStandardRecipeGen extends StandardRecipeGen {
                     .pattern("TPT")
                     .pattern("T T")),
 
-    LIQUID_THRUSTER = create(NorthstarBlocks.LIQUID_THRUSTER)
-            .unlockedByTag(() -> NorthstarItemTags.C_SHEETS_IRON.tag)
-            .viaShaped(b -> b.define('I', NorthstarItemTags.C_SHEETS_IRON.tag)
-                    .define('P', AllItems.PROPELLER)
-                    .define('B', Items.BUCKET)
-                    .pattern("IBI")
-                    .pattern("IPI")
-                    .pattern("I I")),
-
     LARGE_FAN = create(NorthstarBlocks.LARGE_FAN)
             .unlockedByTag(() -> NorthstarItemTags.C_INGOTS_TITANIUM.tag)
             .viaShaped(b -> b.define('T', NorthstarItemTags.C_INGOTS_TITANIUM.tag)

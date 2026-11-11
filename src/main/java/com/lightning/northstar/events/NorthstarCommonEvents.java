@@ -5,10 +5,9 @@ import com.lightning.northstar.block.tech.atmospheric_concentrator.AtmosphericCo
 import com.lightning.northstar.block.tech.combustion_engine.CombustionEngineBlockEntity;
 import com.lightning.northstar.block.tech.electrolysis_machine.ElectrolysisMachineBlockEntity;
 import com.lightning.northstar.block.tech.ice_box.IceBoxBlockEntity;
-import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerBlockEntity;
 import com.lightning.northstar.block.tech.oxygen_sealer.OxygenSealerBlockEntity;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterBlockEntity;
+import com.lightning.northstar.block.tech.thruster.RocketThrusterBlockEntity;
 import com.lightning.northstar.item.DrinkableBucketItem;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
@@ -30,7 +29,6 @@ public class NorthstarCommonEvents {
         OxygenFillerBlockEntity.registerCapabilities(event);
         OxygenSealerBlockEntity.registerCapabilities(event);
         RocketThrusterBlockEntity.registerCapabilities(event);
-        LiquidThrusterBlockEntity.registerCapabilities(event);
 
         // See CapabilityHooks#registerFallbackVanillaProviders
         for (Item item : BuiltInRegistries.ITEM) {

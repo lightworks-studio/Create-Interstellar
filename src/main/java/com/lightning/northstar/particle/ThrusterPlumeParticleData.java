@@ -17,7 +17,7 @@ public class ThrusterPlumeParticleData implements ParticleOptions, ICustomPartic
     private static final MapCodec<ThrusterPlumeParticleData> CODEC = MapCodec.unit(INSTANCE);
     private static final StreamCodec<RegistryFriendlyByteBuf, ThrusterPlumeParticleData> STREAM_CODEC = StreamCodec.unit(INSTANCE);
 
-    private ThrusterPlumeParticleData() {
+    public ThrusterPlumeParticleData() {
     }
 
     @Override

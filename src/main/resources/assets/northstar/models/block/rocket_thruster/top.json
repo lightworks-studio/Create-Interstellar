@@ -3,8 +3,8 @@
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {
-		"1": "northstar:block/rocket_thruster_1",
-		"particle": "northstar:block/rocket_thruster_1"
+		"1": "northstar:block/rocket_thruster/rocket_thruster_1",
+		"particle": "northstar:block/rocket_thruster/rocket_thruster_1"
 	},
 	"elements": [
 		{

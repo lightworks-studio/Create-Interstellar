@@ -4,7 +4,7 @@ import com.lightning.northstar.block.simple.InterplanetaryNavigatorBlock;
 import com.lightning.northstar.block.tech.auto_lander.AutoLanderBlock;
 import com.lightning.northstar.block.tech.computer_rack.TargetingComputerRackBlockEntity;
 import com.lightning.northstar.block.tech.rocket_controls.RocketControlsBlock;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterBlock;
+import com.lightning.northstar.block.tech.thruster.ThrusterBlock;
 import com.lightning.northstar.compat.copycats.CopycatsPlusHelper;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.config.ServerConfig;
@@ -102,7 +102,7 @@ public class RocketContraption extends TranslatingContraption {
             hasInterplanetaryNavigator = true;
         }
 
-        if (block instanceof RocketThrusterBlock && thrusterCount != INFINITE_THRUSTERS) {
+        if (block instanceof ThrusterBlock && thrusterCount != INFINITE_THRUSTERS) {
             thrusterCount++;
         }
 

@@ -1,5 +1,5 @@
 {
   "textures": {
-    "particle": "northstar:block/rocket_thruster_1"
+    "particle": "northstar:block/rocket_thruster/rocket_thruster_1"
   }
 }

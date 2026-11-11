@@ -12,7 +12,6 @@ import com.lightning.northstar.block.tech.computer_rack.TargetingComputerRackBlo
 import com.lightning.northstar.block.tech.electrolysis_machine.ElectrolysisMachineBlock;
 import com.lightning.northstar.block.tech.ice_box.IceBoxBlock;
 import com.lightning.northstar.block.tech.large_fan.LargeFanBlock;
-import com.lightning.northstar.block.tech.liquid_thruster.LiquidThrusterBlock;
 import com.lightning.northstar.block.tech.oxygen_detector.OxygenDetectorBlock;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerBlock;
 import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerMovementBehaviour;
@@ -26,8 +25,6 @@ import com.lightning.northstar.block.tech.rocket_controls.RocketControlsMovement
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlock;
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlockMovementBehaviour;
 import com.lightning.northstar.block.tech.rocket_station.RocketStationBlockMovingInteraction;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterBlock;
-import com.lightning.northstar.block.tech.rocket_thruster.RocketThrusterMovementBehaviour;
 import com.lightning.northstar.block.tech.rocket_waypoint.RocketWaypointBlock;
 import com.lightning.northstar.block.tech.solar_panel.SolarPanelBlock;
 import com.lightning.northstar.block.tech.solar_panel.SolarPanelBlockEntity;
@@ -35,6 +32,7 @@ import com.lightning.northstar.block.tech.telescope.TelescopeBlock;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorBlock;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorMovementBehaviour;
 import com.lightning.northstar.block.tech.temperature_regulator.TemperatureRegulatorMovingInteractionBehaviour;
+import com.lightning.northstar.block.tech.thruster.ThrusterBlock;
 import com.lightning.northstar.content.NorthstarTags.NorthstarBlockTags;
 import com.lightning.northstar.content.NorthstarTags.NorthstarItemTags;
 import com.lightning.northstar.content.world.planet.core.NorthstarVegetationConfiguredFeatures;
@@ -371,8 +369,8 @@ public class NorthstarBlocks {
             .simpleItem()
             .register();
 
-    public static final BlockEntry<RocketThrusterBlock> ROCKET_THRUSTER = REGISTRATE
-            .block("rocket_thruster", RocketThrusterBlock::new)
+    public static final BlockEntry<ThrusterBlock> ROCKET_THRUSTER = REGISTRATE
+            .block("rocket_thruster", ThrusterBlock::new)
             .initialProperties(SharedProperties::softMetal)
             .properties(p -> p.mapColor(MapColor.COLOR_LIGHT_GRAY)
                     .noOcclusion()
@@ -380,22 +378,8 @@ public class NorthstarBlocks {
             .tag(BlockTags.MINEABLE_WITH_PICKAXE)
             .tag(NorthstarBlockTags.ROCKET_ALWAYS_ACTIVE_ACTORS.tag)
             .blockstate(NorthstarDataGenModels.manualModel())
-            .onRegister(MovementBehaviour.movementBehaviour(new RocketThrusterMovementBehaviour()))
             .item()
             .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/rocket_thruster/single")))
-            .build()
-            .register();
-
-    public static final BlockEntry<LiquidThrusterBlock> LIQUID_THRUSTER = REGISTRATE
-            .block("liquid_thruster", LiquidThrusterBlock::new)
-            .initialProperties(SharedProperties::softMetal)
-            .properties(p -> p.mapColor(MapColor.COLOR_CYAN)
-                    .noOcclusion()
-                    .isViewBlocking(NorthstarBlocks::never))
-            .tag(BlockTags.MINEABLE_WITH_PICKAXE)
-            .blockstate(NorthstarDataGenModels.manualModel())
-            .item()
-            .model((c, p) -> p.withExistingParent(p.name(c), p.modLoc("block/liquid_thruster/single")))
             .build()
             .register();
 

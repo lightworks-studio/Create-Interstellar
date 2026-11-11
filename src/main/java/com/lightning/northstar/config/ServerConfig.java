@@ -1,9 +1,17 @@
 package com.lightning.northstar.config;
 
 import net.createmod.catnip.config.ConfigBase;
+import net.createmod.catnip.config.ConfigBase.CValue;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.common.ModConfigSpec;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ServerConfig extends ConfigBase {
 
@@ -34,17 +42,89 @@ public class ServerConfig extends ConfigBase {
     public final ConfigFloat landingFuelScale = f(10, 0, "landingFuelScale");
     public final ConfigFloat travelFuelScale = f(10, 0, "travelFuelScale");
 
-    public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster multiblock properties");
+    public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster properties");
 
-    public final ConfigFloat rocketThrusterBaseThrust = f(500, 0, "baseThrust", "Base thrust of a single rocket thruster in Newtons");
-    public final ConfigFloat rocketThrusterFuelUsage = f(1, 0, "fuelUsage", "Fuel consumed per tick per block at full throttle");
-    public final ConfigInt rocketThrusterFuelCapacity = i(1000, 1, "fuelCapacity", "Fuel and oxidizer capacity per thruster block, in mB");
-    public final ConfigInt rocketThrusterMaxLength = i(64, 3, "maxLength", "Maximum length of a multiblock rocket thruster");
+    public final ConfigFloat thrusterBaseThrust = f(533.333f, 1, 10_000_000, "baseThrust",
+            "Base thrust at redstone 15 and full obstruction efficiency for the standard thruster.",
+            "Default tuned for 1000-unit thrust scale parity with Sable physics.",
+            "Effective thrust uses: baseThrust * fuel_thrust_percent / 100.");
+    public final ConfigInt thrusterObstructionScanLength = i(10, 1, 64, "obstructionScanLength",
+            "How many blocks behind the nozzle are checked for obstruction.");
+    public final ConfigBool thrusterObstructionIgnoreOtherSubLevels = b(true, "obstructionIgnoreOtherSubLevels",
+            "Ignore non-sublevel blocks when checking for obstruction.");
+    public final ConfigInt thrusterFuelTankCapacityMb = i(1000, 250, 10_000_000, "fuelTankCapacityMb",
+            "Internal fuel tank capacity in millibuckets.");
+    public final ConfigFloat thrusterFuelMbPerTickAtFullThrottle = f(1, 0.0001f, 1000, "fuelMbPerTickAtFullThrottle",
+            "Fuel consumption in millibuckets per tick at full redstone throttle.");
+    public final ConfigBool thrusterDamageEntities = b(true, "damageEntities",
+            "If true, entities inside active thruster plume are damaged.");
+    public final ConfigInt thrusterClientParticlesPerTick = i(4, 0, 64, "clientParticlesPerTick",
+            "Max client particles per tick while active.");
 
-    public final ConfigFloat liquidThrusterBaseThrust = f(300, 0, "liquidBaseThrust", "Base thrust of a single liquid thruster in Newtons");
-    public final ConfigFloat liquidThrusterFuelUsage = f(1, 0, "liquidFuelUsage", "Fuel consumed per tick per block at full throttle");
-    public final ConfigInt liquidThrusterFuelCapacity = i(1000, 1, "liquidFuelCapacity", "Fuel and oxidizer capacity per liquid thruster block, in mB");
-    public final ConfigInt liquidThrusterMaxLength = i(64, 3, "liquidMaxLength", "Maximum length of a multiblock liquid thruster");
+    public final ConfigGroup thrusterMultiblock = group(2, "multiblockThruster", "Multiblock thruster properties");
+
+    public final ConfigFloat thrusterMultiblock2xThrustMultiplier = f(1.25f, 0.01f, 10, "multiblock2xThrustMultiplier",
+            "Thrust multiplier for a 2x2x2 multiblock thruster (e.g. 1.10 = 10% bonus).");
+    public final ConfigFloat thrusterMultiblock3xThrustMultiplier = f(1.5f, 0.01f, 10, "multiblock3xThrustMultiplier",
+            "Thrust multiplier for a 3x3x3 multiblock thruster (e.g. 1.25 = 25% bonus).");
+    public final ConfigFloat thrusterMultiblock2xFuelEfficiency = f(0.6f, 0.01f, 10, "multiblock2xFuelEfficiency",
+            "Fuel cost multiplier for a 2x2x2 multiblock thruster (e.g. 1.0 = no reduction, 0.8 = 20% cheaper).");
+    public final ConfigFloat thrusterMultiblock3xFuelEfficiency = f(0.4f, 0.01f, 10, "multiblock3xFuelEfficiency",
+            "Fuel cost multiplier for a 3x3x3 multiblock thruster (e.g. 0.95 = 5% cheaper).");
+    public final ConfigFloat thrusterMultiblock2xOxidizerEfficiency = f(0.85f, 0.01f, 10, "multiblock2xOxidizerEfficiency",
+            "Oxidizer cost multiplier for a 2x2x2 multiblock thruster. 0.85 = 15% savings.");
+    public final ConfigFloat thrusterMultiblock3xOxidizerEfficiency = f(0.75f, 0.01f, 10, "multiblock3xOxidizerEfficiency",
+            "Oxidizer cost multiplier for a 3x3x3 multiblock thruster. 0.75 = 25% savings.");
+
+    public final ConfigGroup thrusterPhysics = group(2, "physics", "Thruster physics properties");
+
+    public final ConfigFloat thrusterNozzleOffsetFromCenter = f(0.45f, 0, 1.5f, "nozzleOffsetFromCenter",
+            "Offset from the block center where force is applied.");
+    public final ConfigBool thrusterUseAtmosphericPressure = b(false, "useAtmosphericPressure",
+            "If true, atmospheric pressure affects thruster output at altitude.");
+    public final ConfigFloat thrusterAtmosphericPressureAmount = f(1, 0, 2, "atmosphericPressureAmount",
+            "Strength of atmospheric pressure influence. 1.0 = full effect, 0.0 = no effect.");
+    public final ConfigFloat thrustUnitsPerKn = f(1000, 1, 1_000_000, "thrustUnitsPerKn",
+            "Shared thrust unit scale: how many internal thrust units correspond to 1 kN.",
+            "Used by physics conversion, tooltip display, and ComputerCraft kN helpers.");
+
+    public final ConfigGroup thrusterFuelProperties = group(2, "fuelProperties",
+            "Fuel properties by fluid id. Configure efficiency and burn rate separately as percentages.");
+
+    public final Map<String, ConfigInt> fuelEfficiencyEntries = new LinkedHashMap<>();
+    public final Map<String, ConfigInt> fuelBurnRateEntries = new LinkedHashMap<>();
+
+    public final CValue<List<? extends String>, ModConfigSpec.ConfigValue<List<? extends String>>> additionalThrusterFuelPropertyLines =
+            new CValue<>("additionalThrusterFuelLines",
+                    builder -> builder.comment(
+                                    "Additional thruster fuel lines (same format as defaults: fluid_id=efficiencyPercent,burnRatePercent).",
+                                    "Use for fluids that do not have a fuelProperties subsection. Entries here override matching fluids from the table above.")
+                            .defineListAllowEmpty("additionalThrusterFuelLines", ArrayList::new, obj -> obj instanceof String));
+
+    {
+        for (String entry : defaultFuelProperties()) {
+            String[] split = entry.split("=", 2);
+            if (split.length != 2)
+                continue;
+            String fluidId = split[0];
+            String[] values = split[1].split(",", 2);
+            if (values.length != 2)
+                continue;
+            int efficiency;
+            int burnRate;
+            try {
+                efficiency = Integer.parseInt(values[0].trim());
+                burnRate = Integer.parseInt(values[1].trim());
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+            group(3, configKeyForFluidId(fluidId));
+            fuelEfficiencyEntries.put(fluidId, i(efficiency, 0, 10000, "efficiency",
+                    "Fuel efficiency percentage for " + fluidId + "."));
+            fuelBurnRateEntries.put(fluidId, i(burnRate, 0, 10000, "burnRate",
+                    "Fuel burn rate percentage for " + fluidId + "."));
+        }
+    }
 
     public final ConfigGroup gameplay = group(1, "gameplay");
 
@@ -95,6 +175,105 @@ public class ServerConfig extends ConfigBase {
 
     public int getCombinedTeleportHeight() {
         return atmosphereBaseHeight.get() + atmosphereThickness.get() + atmosphereTeleportHeight.get();
+    }
+
+    public static List<String> defaultFuelProperties() {
+        return new ArrayList<>(List.of(
+                "minecraft:lava=75,100",
+                "createdieselgenerators:plant_oil=55,170",
+                "immersiveengineering:plantoil=55,170",
+                "createdieselgenerators:ethanol=70,140",
+                "immersiveengineering:ethanol=70,140",
+                "mekanismgenerators:bioethanol=75,135",
+                "northstar:biofuel=80,125",
+                "createdieselgenerators:biodiesel=90,110",
+                "immersiveengineering:biodiesel=90,110",
+                "immersiveengineering:high_power_biodiesel=105,95",
+                "createdieselgenerators:diesel=100,100",
+                "tfmg:diesel=100,100",
+                "stellaris:diesel=100,100",
+                "tfmg:naphtha=95,105",
+                "tfmg:kerosene=230,90",
+                "createdieselgenerators:gasoline=125,80",
+                "tfmg:gasoline=125,80",
+                "tfmg:lpg=120,85",
+                "northstar:hydrocarbon=130,75",
+                "stellaris:fuel=115,100",
+                "mekanism:hydrogen=230,90",
+                "createaddition:bioethanol=75,135",
+                "createaddition:seed_oil=55,170",
+                "northstar:methane=105,95",
+                "northstar:liquid_hydrogen=230,90",
+                "immersivepetroleum:diesel_sulfur=100,100"
+        ));
+    }
+
+    private static String configKeyForFluidId(String fluidId) {
+        return fluidId
+                .replace(':', '_')
+                .replace('/', '_')
+                .replace('.', '_')
+                .replace('-', '_');
+    }
+
+    public List<? extends String> getFuelPropertiesOrDefault() {
+        LinkedHashMap<String, String> merged = new LinkedHashMap<>();
+
+        if (!fuelEfficiencyEntries.isEmpty() && !fuelBurnRateEntries.isEmpty()) {
+            for (Map.Entry<String, ConfigInt> e : fuelEfficiencyEntries.entrySet()) {
+                try {
+                    ConfigInt burnRate = fuelBurnRateEntries.get(e.getKey());
+                    if (burnRate == null) {
+                        continue;
+                    }
+                    merged.put(e.getKey(), e.getValue().get() + "," + burnRate.get());
+                } catch (IllegalStateException ignored) {
+                    // Config not ready — skip entry
+                }
+            }
+        }
+
+        try {
+            List<? extends String> extra = additionalThrusterFuelPropertyLines.get();
+            if (extra != null) {
+                for (Object o : extra) {
+                    if (!(o instanceof String raw)) {
+                        continue;
+                    }
+                    String line = raw.trim();
+                    int sep = line.indexOf('=');
+                    if (sep <= 0 || sep >= line.length() - 1) {
+                        continue;
+                    }
+                    String fluidId = line.substring(0, sep).trim();
+                    String rhs = line.substring(sep + 1).trim();
+                    if (ResourceLocation.tryParse(fluidId) == null || !rhs.contains(",")) {
+                        continue;
+                    }
+                    merged.put(fluidId, rhs);
+                }
+            }
+        } catch (IllegalStateException ignored) {
+            // ignore until config load completes
+        }
+
+        if (merged.isEmpty()) {
+            return defaultFuelProperties();
+        }
+
+        List<String> out = new ArrayList<>(merged.size());
+        for (Map.Entry<String, String> e : merged.entrySet()) {
+            out.add(e.getKey() + "=" + e.getValue());
+        }
+        return out;
+    }
+
+    public float getThrustUnitsPerKnOrDefault() {
+        try {
+            return thrustUnitsPerKn.getF();
+        } catch (IllegalStateException ignored) {
+            return 1000.0f;
+        }
     }
 
     public float calculateAtmosphereBlend(Level level, double y) {

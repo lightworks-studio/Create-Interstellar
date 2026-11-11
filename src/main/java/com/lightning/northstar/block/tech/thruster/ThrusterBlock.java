@@ -1,117 +1,93 @@
 package com.lightning.northstar.block.tech.thruster;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
-import net.minecraft.MethodsReturnNonnullByDefault;
+import com.simibubi.create.foundation.blockEntity.SmartBlockEntityTicker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import com.lightning.northstar.content.NorthstarBlockEntityTypes;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
-/**
- * Shared base for the rocket and liquid thrusters. Both are FACING-based multiblock
- * assemblies: {@link #FACING} is the direction of thrust (the body extends from the
- * controller toward FACING, the exhaust/nozzle is on the opposite side).
- *
- * <p>Concrete subclasses provide the block-entity class/type and their own model.
- */
-@MethodsReturnNonnullByDefault
-@ParametersAreNonnullByDefault
-public abstract class ThrusterBlock<T extends ThrusterBlockEntity> extends DirectionalBlock implements IBE<T>, IWrenchable {
-
+public class ThrusterBlock extends AbstractThrusterBlock {
+    public static final MapCodec<ThrusterBlock> CODEC = simpleCodec(ThrusterBlock::new);
     public static final BooleanProperty MULTIBLOCK = BooleanProperty.create("multi");
 
-    protected ThrusterBlock(Properties properties) {
+    public ThrusterBlock(Properties properties) {
         super(properties);
-        registerDefaultState(defaultBlockState()
-                .setValue(FACING, Direction.UP)
-                .setValue(MULTIBLOCK, false));
+        this.registerDefaultState(this.defaultBlockState().setValue(MULTIBLOCK, false));
     }
-
-    @Override
-    protected abstract MapCodec<? extends DirectionalBlock> codec();
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        super.createBlockStateDefinition(builder.add(FACING, MULTIBLOCK));
+        super.createBlockStateDefinition(builder);
+        builder.add(MULTIBLOCK);
     }
 
     @Override
-    public BlockState getStateForPlacement(BlockPlaceContext context) {
-        // Thrust along the clicked face, so the nozzle (opposite side) seats against the clicked surface.
-        return defaultBlockState().setValue(FACING, context.getClickedFace());
-    }
-
-    @Override
-    public BlockState rotate(BlockState state, Rotation rotation) {
-        return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
-    }
-
-    @Override
-    public BlockState mirror(BlockState state, Mirror mirror) {
-        return state.rotate(mirror.getRotation(state.getValue(FACING)));
-    }
-
-    @Override
-    public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean moved) {
-        super.onPlace(state, world, pos, oldState, moved);
-        if (!world.isClientSide()) {
-            withBlockEntityDo(world, pos, be -> {
-                be.updateConnectivity();
-                be.setRedstoneInput(world.getBestNeighborSignal(pos));
-            });
+    protected VoxelShape getShape(final BlockState state,
+                                  final BlockGetter level,
+                                  final BlockPos pos,
+                                  final CollisionContext context) {
+        if (state.hasProperty(MULTIBLOCK) && state.getValue(MULTIBLOCK)) {
+            return Shapes.block();
         }
+        Direction direction = state.getValue(FACING);
+        if (direction == Direction.UP || direction == Direction.DOWN) direction = direction.getOpposite();
+        return ThrusterShapes.THRUSTER.get(direction);
     }
 
     @Override
-    public void neighborChanged(BlockState state, Level world, BlockPos pos, Block neighborBlock, BlockPos neighborPos, boolean movedByPiston) {
-        super.neighborChanged(state, world, pos, neighborBlock, neighborPos, movedByPiston);
-        if (!world.isClientSide())
-            withBlockEntityDo(world, pos, be -> be.setRedstoneInput(world.getBestNeighborSignal(pos)));
+    public Class<AbstractThrusterBlockEntity> getBlockEntityClass() {
+        return AbstractThrusterBlockEntity.class;
     }
 
     @Override
-    public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean isMoving) {
-        if (state.is(newState.getBlock()))
-            return;
+    protected MapCodec<? extends DirectionalBlock> codec() {
+        return CODEC;
+    }
 
-        if (!world.isClientSide) {
-            BlockEntity be = world.getBlockEntity(pos);
-            if (be instanceof ThrusterBlockEntity thruster) {
-                ThrusterBlockEntity controller = thruster.isController() ? thruster : thruster.getControllerBE();
-                if (controller != null)
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(@Nonnull BlockPos pos, @Nonnull BlockState state) {
+        return new RocketThrusterBlockEntity(NorthstarBlockEntityTypes.ROCKET_THRUSTER.get(), pos, state);
+    }
+
+    @Override
+    public BlockEntityType<? extends AbstractThrusterBlockEntity> getBlockEntityType() {
+        return NorthstarBlockEntityTypes.ROCKET_THRUSTER.get();
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())) {
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof RocketThrusterBlockEntity thruster) {
+                RocketThrusterBlockEntity controller = thruster.isController() ? thruster : thruster.getControllerBE();
+                if (controller != null) {
                     controller.disassembleMulti();
+                }
             }
         }
-
-        super.onRemove(state, world, pos, newState, isMoving);
-        IBE.onRemove(state, world, pos, newState);
+        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
+    @Nullable
     @Override
-    public abstract Class<T> getBlockEntityClass();
-
-    @Override
-    public abstract BlockEntityType<? extends T> getBlockEntityType();
-
-    /**
-     * Whether a world block at {@code pos} is a compatible thruster block of the same
-     * type as this one (used to detect neighbours and to form/validate multiblocks).
-     */
-    public boolean isCompatibleBlock(BlockState state) {
-        return state.is(this);
+    public <T extends net.minecraft.world.level.block.entity.BlockEntity> BlockEntityTicker<T> getTicker(@Nonnull Level level, @Nonnull BlockState state, @Nonnull BlockEntityType<T> type) {
+        if (type == NorthstarBlockEntityTypes.ROCKET_THRUSTER.get()) {
+            return new SmartBlockEntityTicker<>();
+        }
+        return null;
     }
-
 }

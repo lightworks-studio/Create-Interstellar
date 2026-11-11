@@ -12,7 +12,7 @@ multiblock, fuel and physics logic and leave two divergent behaviours.
 Introduce shared base classes and make **both** thrusters six-way `FACING`-based:
 
 - `ThrusterBlock<T extends ThrusterBlockEntity>` — abstract directional block.
-- `ThrusterBlockEntity` — all shared logic, parameterised by a `FACING`-derived cross-axis
+- `RocketThrusterBlockEntity` — all shared logic, parameterised by a `FACING`-derived cross-axis
   basis (`crossAxisU` / `crossAxisV`).
 - `ThrusterRenderer<T>` — shared multiblock renderer; subclasses only supply partial models.
 - Concrete `Rocket*` and `Liquid*` subclasses supply config getters, compatibility checks,

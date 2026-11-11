@@ -10,13 +10,12 @@ public class ClientConfig extends ConfigBase {
     public final ConfigEnum<TemperatureUnit> temperatureUnit = e(TemperatureUnit.CELSIUS, "temperatureUnit");
     public final ConfigEnum<PressureUnit> pressureUnit = e(PressureUnit.PASCAL, "pressureUnit");
 
-    public final ConfigBool alwaysEnableThrusterParticles = b(false, "alwaysEnableThrusterParticles", "Whether rocket thrusters on contraptions should always produce particles shown during countdown.");
-
     public final ConfigEnum<StarVisibility> planetVisibility = e(StarVisibility.ALWAYS, "planetVisibility", "The visibility of other planets in the sky", StarVisibility.COMMENT);
     public final ConfigEnum<StarVisibility> starVisibility = e(StarVisibility.OUTSIDE_ATMOSPHERE, "starVisibility", "The visibility of additional stars in the sky", StarVisibility.COMMENT);
 
     public final ConfigGroup debug = group(1, "debug");
     public final ConfigBool debugSealerBounds = b(false, "debugSealerBounds");
+    public final ConfigBool debugThruster = b(false, "debugThruster", "Show obstruction and other technical debug overlays for thrusters.");
 
     @Override
     public @NotNull String getName() {

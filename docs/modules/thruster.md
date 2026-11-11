@@ -39,7 +39,7 @@ All member offsets are derived from `FACING` through a cross-section basis:
 | EAST | DOWN | SOUTH |
 | WEST | UP | SOUTH |
 
-`ThrusterBlockEntity.memberPos(u, v, layer)` = controller position + `u·U + v·V + layer·FACING`.
+`RocketThrusterBlockEntity.memberPos(u, v, layer)` = controller position + `u·U + v·V + layer·FACING`.
 The controller is the minimum corner in that basis. `exhaustPos(...)` mirrors the same
 basis on the `FACING.getOpposite()` side for air-clearance checks and plumes.
 
@@ -48,7 +48,7 @@ basis on the `FACING.getOpposite()` side for air-clearance checks and plumes.
 - Shape: a `W×W×L` prism (`W ∈ {1,2,3}`, `L ≥ W`). This includes the `2×2×2` and
   `3×3×3` cases.
 - `isMultiblock()` ⇔ `W > 1 && L ≥ W`.
-- Assembly is attempted by `ThrusterBlockEntity.tick` (every 5 ticks) when a neighbouring
+- Assembly is attempted by `RocketThrusterBlockEntity.tick` (every 5 ticks) when a neighbouring
   compatible thruster exists. A layer must be complete (`W×W`) before the next layer is
   considered; the found length must be `≥ W`.
 - Members store `width`, `length` and (for non-controllers) `controllerPos`. The controller
@@ -72,7 +72,7 @@ basis on the `FACING.getOpposite()` side for air-clearance checks and plumes.
 
 ## Rendering
 
-`ThrusterRenderer` renders only the controller of a multiblock. Partial models are authored
+`RocketThrusterRenderer` renders only the controller of a multiblock. Partial models are authored
 pointing **up** (body `+Y`, nozzle `-Y`) and are rotated about the controller block center
 by `applyFacingRotation` so the body aligns with `FACING`.
 
