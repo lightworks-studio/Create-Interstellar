@@ -135,10 +135,24 @@ repositories {
             includeGroupByRegex("dev\\.latvian\\..*")
         }
     }
+    maven("https://maven.theillusivec4.top/") { // Curios (transitive dep of Aeronautics/Simulated/Offroad)
+        content {
+            includeGroup("top.theillusivec4.curios")
+        }
+    }
+    maven("https://maven.squiddev.cc/") { // CC:Tweaked (transitive dep of Aeronautics/Simulated/Offroad)
+        content {
+            includeGroup("cc.tweaked")
+            includeModule("org.squiddev", "Cobalt")
+        }
+    }
     maven("https://maven.ryanhcode.dev/releases") {
         content {
             includeGroup("dev.ryanhcode.sable")
             includeGroup("dev.ryanhcode.sable-companion")
+            includeGroup("dev.eriksonn.aeronautics")
+            includeGroup("dev.simulated_team.simulated")
+            includeGroup("dev.ryanhcode.offroad")
         }
     }
     flatDir { dir("run/mods-obf-1.21.1") }
@@ -169,9 +183,21 @@ dependencies {
     implementation(libs.kubejs) { isTransitive = false }
     implementation(libs.kubejs.create)
     implementation(libs.rhino)
-    implementation(libs.sable)
+    implementation(libs.sable) { exclude(group = "com.simibubi.create") }
     implementation(libs.sable.companion)
     implementation(libs.tfmg)
+
+    // Exclude create: this project uses the slim jar (without jarjar-embedded Registrate/Flywheel/Ponder)
+    // directly, and the transitive default jar would result in a duplicate create mod on the classpath
+    implementation(libs.aeronautics) { exclude(group = "com.simibubi.create") }
+    implementation(libs.offroad) { exclude(group = "com.simibubi.create") }
+    implementation(libs.simulated) { exclude(group = "com.simibubi.create") }
+
+    //Dimensional sable is fantastic!
+    //https://modrinth.com/mod/dimensional-sable/
+    //NeoForge 1.1.0 build of project Iq9c4mLa (version id qU6WVBqC; WHNBfjyl is the Fabric build)
+    jarJar(implementation("maven.modrinth:Iq9c4mLa:qU6WVBqC")!!)
+
 
     "tfmgCeImplementation"(libs.tfmg.ce)
 
@@ -181,16 +207,18 @@ dependencies {
 
 tasks.jar {
     manifest {
-        attributes(mapOf(
-            "Specification-Title" to "northstar",
-            "Specification-Vendor" to "Redstonneur1256",
-            "Specification-Version" to version,
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to version,
-            "Implementation-Vendor" to "Redstonneur1256",
-            "Implementation-Timestamp" to Instant.now().toString(),
-            "MixinConfigs" to "northstar.mixins.json"
-        ))
+        attributes(
+            mapOf(
+                "Specification-Title" to "northstar",
+                "Specification-Vendor" to "Redstonneur1256",
+                "Specification-Version" to version,
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to version,
+                "Implementation-Vendor" to "Redstonneur1256",
+                "Implementation-Timestamp" to Instant.now().toString(),
+                "MixinConfigs" to "northstar.mixins.json"
+            )
+        )
     }
 }
 
