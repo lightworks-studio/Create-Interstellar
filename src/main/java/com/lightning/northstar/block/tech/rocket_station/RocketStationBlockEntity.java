@@ -1,5 +1,7 @@
 package com.lightning.northstar.block.tech.rocket_station;
 
+import com.lightning.northstar.block.tech.thruster.SimulatedThrustAdapter;
+import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.contraption.rocket.RocketContraption;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
 import com.lightning.northstar.contraption.rocket.RocketDestination;
@@ -10,6 +12,7 @@ import com.simibubi.create.content.contraptions.IDisplayAssemblyExceptions;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -21,15 +24,32 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3d;
 
 import java.util.List;
 
-public class RocketStationBlockEntity extends SmartBlockEntity implements IDisplayAssemblyExceptions {
+public class RocketStationBlockEntity extends SmartBlockEntity
+        implements
+        IDisplayAssemblyExceptions,
+        dev.ryanhcode.sable.api.block.BlockEntitySubLevelActor {
 
     public final SimpleContainer container = new BetterSimpleContainer(2);
-
     public AssemblyException lastException;
     public RocketDestination destination;
+    public long lastTeleportTime;
+
+    @Override
+    public void sable$physicsTick(final dev.ryanhcode.sable.sublevel.ServerSubLevel subLevel, final dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle handle, final double timeStep) {
+        if (lastTeleportTime > 40 && //tick cooldown
+                subLevel.latestLinearVelocity.y > 0.015
+                && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()) {
+            System.out.println("DIMENSION CHANGE!!!");
+            lastTeleportTime = 0;
+        }
+        lastTeleportTime++;
+//        subLevel.getLevel().getGameTime()
+    }
+
 
     public RocketStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);

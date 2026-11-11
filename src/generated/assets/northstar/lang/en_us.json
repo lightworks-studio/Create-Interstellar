@@ -582,7 +582,7 @@
   "northstar.gui.goggles.temperature_regulator": "Temperature Regulator Stats:",
   "northstar.gui.goggles.thruster.bulk_bonus": "Bulk bonus",
   "northstar.gui.goggles.thruster.bulk_bonus_active": "Active",
-  "northstar.gui.goggles.thruster.bulk_bonus_inactive": "Thrust bonus (inactive)",
+  "northstar.gui.goggles.thruster.bulk_bonus_inactive": "Inactive",
   "northstar.gui.goggles.thruster.efficiency": "Efficiency",
   "northstar.gui.goggles.thruster.fuel_label": "Fuel",
   "northstar.gui.goggles.thruster.obstructed": "Obstructed",
