@@ -80,6 +80,41 @@ public class ThrusterBlock extends AbstractThrusterBlock {
             }
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
+        if (!state.is(newState.getBlock()) && level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            RocketThrusterBlockEntity.requestConnectivityAround(serverLevel, pos, true);
+        }
+    }
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        boolean facingChanged = oldState.hasProperty(FACING) && state.getValue(FACING) != oldState.getValue(FACING);
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel
+                && (!oldState.is(state.getBlock()) || facingChanged)) {
+            RocketThrusterBlockEntity.requestConnectivityAround(serverLevel, pos, true);
+        }
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+                                BlockPos neighborPos, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
+        if (!(level instanceof net.minecraft.server.level.ServerLevel serverLevel)
+                || !level.hasChunk(neighborPos.getX() >> 4, neighborPos.getZ() >> 4)) return;
+        // Ignore ordinary redstone/neighbour activity outside the engine. Structural
+        // removals are explicitly handled by onRemove, including the old controller.
+        BlockState neighbour = SimulatedThrustAdapter.getBlockStateSafe(level, neighborPos);
+        if (neighbour.getBlock() instanceof ThrusterBlock) {
+            RocketThrusterBlockEntity.requestConnectivityAround(serverLevel, neighborPos, false);
+        }
+    }
+
+    @Override
+    protected void tick(BlockState state, net.minecraft.server.level.ServerLevel level,
+                        BlockPos pos, net.minecraft.util.RandomSource random) {
+        super.tick(state, level, pos, random);
+        var be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
+        if (be instanceof RocketThrusterBlockEntity thruster) thruster.runScheduledConnectivityCheck();
     }
 
     @Nullable

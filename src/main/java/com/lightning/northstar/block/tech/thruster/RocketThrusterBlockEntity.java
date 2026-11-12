@@ -48,13 +48,13 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     protected double lastOxidizerConsumedMbPerTick = 0.0d;
     protected double fuelDrainAccumulator = 0.0d;
     protected double oxidizerDrainAccumulator = 0.0d;
-    // Runtime-only: serialized topology is a hint until the current world validates it.
-    private static final int DISASSEMBLY_GRACE_TICKS = 10;
-    private static final int CONNECTIVITY_INTERVAL = 20;
-    private int disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
-    private int connectivityTicks;
-    private int invalidTopologyChecks;
+    // Create-vault pattern: one pending rebuild flag, consumed by a native callback.
+    // No connectivity work is dispatched by the ordinary entity/server tick.
+    private long connectivityCheckDue;
     private volatile boolean topologyReady;
+    private boolean waitingForFluids;
+    @Nullable private BlockPos lastKnownPos;
+    @Nullable private Direction lastKnownFacing;
 
     private enum CubeStatus { VALID, INVALID, UNAVAILABLE }
 
@@ -80,6 +80,8 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
         oxidizerTank = new SmartFluidTankBehaviour(OXIDIZER_TANK, this, 1, getBaseTankCapacityMb(), false);
         behaviours.add(oxidizerTank);
+        tank.whenFluidUpdates(this::onFluidContentsChanged);
+        oxidizerTank.whenFluidUpdates(this::onFluidContentsChanged);
         oxidizerTank.getPrimaryHandler().setValidator(stack ->
                 NorthstarFluidTags.C_OXYGEN.matches(stack) || NorthstarFluidTags.C_LIQUID_OXYGEN.matches(stack));
     }
@@ -104,68 +106,229 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     @Override
     public void tick() {
         if (level == null || isRemoved()) return;
-        // Resolve ownership before the base tick can consume fuel or produce thrust.
-        if (!level.isClientSide) tickConnectivity();
+        // TODO: Verify in-game whether fallback connectivity polling is still needed.
+        // Create-style dirty state is consumed by scheduled block callbacks instead.
+        // if (!level.isClientSide) tickConnectivity();
         super.tick();
     }
 
-    private void tickConnectivity() {
-        if (disassemblyCooldown > 0) {//If the structure is unverified, we tick down (this is extremely lightweight as we simply check if its > 0 which its always unless  invalidated)
-            disassemblyCooldown--;
-            setTopologyReady(false);
-            return;
-        }
-        //If the connectivity interval is up or the thruster has been marked as dirty, continue
-        /*
-        * TODO: We could mark it assembled and stop checking until something changes. The difficulty is making sure
-        *  every relevant change invalidates that mark: a member being removed or rotated, a chunk unloading,
-        *  schematic placement, or Sable moving the blocks.
-        * */
-        if (++connectivityTicks < CONNECTIVITY_INTERVAL && !updateConnectivity) return;
-        connectivityTicks = 0;
-        updateConnectivity = false;
-        if (!supportsMultiblock()) {
-            if (width != 1 || controllerPos != null) resetMultiblockForRebuild();
-            setTopologyReady(true);
-            reconcileMultiblockState();
-            return;
-        }
+    /*
+     * TODO: Retain this former polling fallback until schematic/Sable event coverage
+     * has been verified in-game. It is intentionally NOT called or compiled;
+     * its old interval/cooldown counters have been removed from the live class.
+         private void tickConnectivity() {
+             if (disassemblyCooldown > 0) {
+                 disassemblyCooldown--;
+                 setTopologyReady(false);
+                 return;
+             }
+             if (++connectivityTicks < CONNECTIVITY_INTERVAL && !updateConnectivity) return;
+             connectivityTicks = 0;
+             updateConnectivity = false;
+             if (!supportsMultiblock()) {
+                 if (width != 1 || controllerPos != null) resetMultiblockForRebuild();
+                 setTopologyReady(true);
+                 reconcileMultiblockState();
+                 return;
+             }
+     
+             BlockPos origin = isController() ? worldPosition : controllerPos;
+             if (width > 1 || controllerPos != null) {
+                 CubeStatus status = inspectFormedCube(origin, width, getFacing());
+                 if (status == CubeStatus.UNAVAILABLE) {
+                     setTopologyReady(false);
+                     stopThrustForRebuild();
+                     return; // Never turn an unloaded chunk into a missing member.
+                 }
+                 if (status == CubeStatus.INVALID) {
+                     setTopologyReady(false);
+                     stopThrustForRebuild();
+                     // Require repeated observations after settling; placement may span ticks.
+                     if (++invalidTopologyChecks < 2) return;
+                     if (isController() && isMultiblock()) disassembleMulti();
+                     else resetMultiblockForRebuild();
+                     return;
+                 } else {
+                     invalidTopologyChecks = 0;
+                     setTopologyReady(true);
+                     reconcileMultiblockState();
+                     // A complete 2-cube may grow into a complete 3-cube.
+                     if (isController() && width < MAX_WIDTH) tryAssemble();
+                     return;
+                 }
+             }
+             invalidTopologyChecks = 0;
+             setTopologyReady(true);
+             reconcileMultiblockState();
+             tryAssemble(); // Kept periodic even after failure; no neighbour hook is required.
+         }
+     */
 
-        BlockPos origin = isController() ? worldPosition : controllerPos;
-        if (width > 1 || controllerPos != null) {
-            CubeStatus status = inspectFormedCube(origin, width, getFacing());
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (level instanceof ServerLevel serverLevel) {
+            requestConnectivityCheck(1, true);
+            requestConnectivityAround(serverLevel, worldPosition, false);
+        }
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        updateConnectivity = false;
+        connectivityCheckDue = 0;
+        topologyReady = false;
+        thrusterData.setThrust(0);
+        if (level instanceof ServerLevel serverLevel) {
+            // Only notify across the unloading chunk's boundary. Never fetch cells
+            // inside that chunk while it is being unloaded.
+            for (Direction direction : Direction.values()) {
+                BlockPos neighbour = worldPosition.relative(direction);
+                if ((neighbour.getX() >> 4) != (worldPosition.getX() >> 4)
+                        || (neighbour.getZ() >> 4) != (worldPosition.getZ() >> 4)) {
+                    requestConnectivityAt(serverLevel, neighbour, true);
+                }
+            }
+        }
+        super.onChunkUnloaded();
+    }
+
+    @Override
+    public void invalidate() {
+        updateConnectivity = false;
+        connectivityCheckDue = 0;
+        topologyReady = false;
+        thrusterData.setThrust(0);
+        super.invalidate();
+    }
+
+    @Override
+    public void setBlockState(BlockState state) {
+        BlockState previous = getBlockState();
+        super.setBlockState(state);
+        // Reconciliation of MULTIBLOCK must not wake its own rebuild again.
+        if (level instanceof ServerLevel serverLevel
+                && previous.hasProperty(AbstractThrusterBlock.FACING)
+                && state.hasProperty(AbstractThrusterBlock.FACING)
+                && previous.getValue(AbstractThrusterBlock.FACING) != state.getValue(AbstractThrusterBlock.FACING)) {
+            requestConnectivityAround(serverLevel, worldPosition, true);
+        }
+    }
+
+    public void requestConnectivityCheck(int delay, boolean invalidate) {
+        if (!(level instanceof ServerLevel serverLevel) || isRemoved()) return;
+        if (invalidate) {
+            setTopologyReady(false);
+            stopThrustForRebuild();
+        }
+        long due = level.getGameTime() + Math.max(1, delay);
+        connectivityCheckDue = updateConnectivity ? Math.max(connectivityCheckDue, due) : due;
+        updateConnectivity = true;
+        serverLevel.scheduleTick(worldPosition, getBlockState().getBlock(), Math.max(1, delay));
+    }
+
+    public static void requestConnectivityAround(ServerLevel level, BlockPos changedPos, boolean invalidate) {
+        requestConnectivityAt(level, changedPos, invalidate);
+        for (Direction direction : Direction.values()) {
+            requestConnectivityAt(level, changedPos.relative(direction), invalidate);
+        }
+    }
+
+    private static void requestConnectivityAt(ServerLevel level, BlockPos pos, boolean invalidate) {
+        if (!level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) return;
+        var be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
+        if (!(be instanceof RocketThrusterBlockEntity thruster) || thruster.isRemoved()) return;
+        thruster.requestConnectivityCheck(1, invalidate);
+        RocketThrusterBlockEntity controller = thruster.getControllerBE();
+        if (controller != null && controller != thruster && (invalidate || !controller.topologyReady)) {
+            controller.requestConnectivityCheck(1, invalidate);
+        }
+    }
+
+    void runScheduledConnectivityCheck() {
+        if (!(level instanceof ServerLevel serverLevel) || isRemoved() || !updateConnectivity) return;
+        long remaining = connectivityCheckDue - level.getGameTime();
+        if (remaining > 0) {
+            serverLevel.scheduleTick(worldPosition, getBlockState().getBlock(), (int) Math.min(Integer.MAX_VALUE, remaining));
+            return;
+        }
+        updateConnectivity = false;
+        connectivityCheckDue = 0;
+        runConnectivityCheck();
+    }
+
+    private void runConnectivityCheck() {
+        waitingForFluids = false;
+        // Like vault LastKnownPos, copied NBT is recognized at its new location.
+        // Facing also catches a rotation that happens to leave this corner in place.
+        boolean moved = lastKnownPos != null && !lastKnownPos.equals(worldPosition);
+        boolean rotated = lastKnownFacing != null && lastKnownFacing != getFacing();
+        lastKnownPos = worldPosition.immutable();
+        lastKnownFacing = getFacing();
+        setChanged();
+        if (moved || rotated || (!supportsMultiblock() && (width != 1 || controllerPos != null))) {
+            resetMultiblockForRebuild();
+            return;
+        }
+        if (controllerPos != null) {
+            RocketThrusterBlockEntity controller = getControllerBE();
+            if (controller != null) {
+                setTopologyReady(controller.topologyReady);
+                reconcileMultiblockState();
+                if (!controller.topologyReady) controller.requestConnectivityCheck(1, false);
+                return;
+            }
+            // Do not turn a chunk still loading into a permanently orphaned member.
+            if (containsCell(controllerPos, width, worldPosition)
+                    && (!isCellLoaded(controllerPos)
+                    || SimulatedThrustAdapter.getBlockEntitySafe(level, controllerPos) == null
+                    && SimulatedThrustAdapter.getBlockStateSafe(level, controllerPos).getBlock() == getBlockState().getBlock())) {
+                setTopologyReady(false);
+                return; // The controller's onLoad will wake this connected structure.
+            }
+            resetMultiblockForRebuild();
+            return;
+        }
+        if (isMultiblock()) {
+            CubeStatus status = inspectFormedCube(worldPosition, width, getFacing());
             if (status == CubeStatus.UNAVAILABLE) {
                 setTopologyReady(false);
                 stopThrustForRebuild();
-                return; // Never turn an unloaded chunk into a missing member.
+                return; // Wait for a load/placement event; no retry timer.
             }
             if (status == CubeStatus.INVALID) {
-                setTopologyReady(false);
-                stopThrustForRebuild();
-                // Require repeated observations after settling; placement may span ticks.
-                if (++invalidTopologyChecks < 2) return;
-                if (isController() && isMultiblock()) disassembleMulti();
-                else resetMultiblockForRebuild();
-                return;
-            } else {
-                invalidTopologyChecks = 0;
-                setTopologyReady(true);
-                reconcileMultiblockState();
-                // A complete 2-cube may grow into a complete 3-cube.
-                if (isController() && width < MAX_WIDTH) tryAssemble();
+                disassembleMulti();
                 return;
             }
+            // Only the controller validates the whole formed cube. Members merely
+            // resolve their owner; publication wakes earlier single-block candidates.
+            for (int x = 0; x < width; x++) for (int y = 0; y < width; y++) for (int z = 0; z < width; z++) {
+                var be = SimulatedThrustAdapter.getBlockEntitySafe(level, worldPosition.offset(x, y, z));
+                if (be instanceof RocketThrusterBlockEntity member) {
+                    member.setTopologyReady(true);
+                    member.reconcileMultiblockState();
+                }
+            }
+        } else {
+            setTopologyReady(true);
+            reconcileMultiblockState();
         }
-        invalidTopologyChecks = 0;
-        setTopologyReady(true);
-        reconcileMultiblockState();
-        tryAssemble(); // Kept periodic even after failure; no neighbour hook is required.
+        if (supportsMultiblock() && width < MAX_WIDTH) tryAssemble();
+    }
+
+    private void onFluidContentsChanged() {
+        if (waitingForFluids && level instanceof ServerLevel serverLevel) {
+            requestConnectivityAround(serverLevel, worldPosition, false);
+        }
     }
 
     private void setTopologyReady(boolean ready) {
         if (topologyReady == ready) return;
         topologyReady = ready;
         if (level != null && !level.isClientSide) level.invalidateCapabilities(worldPosition);
+        if (ready && level instanceof ServerLevel serverLevel) {
+            requestConnectivityAround(serverLevel, worldPosition, false);
+        }
     }
 
     private boolean isCellLoaded(BlockPos pos) {
@@ -258,10 +421,9 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     private void resetMultiblockForRebuild() {
         width = 1;
         controllerPos = null;
-        updateConnectivity = true;
-        invalidTopologyChecks = 0;
         topologyReady = false;
         topologyChanged();
+        requestConnectivityCheck(1, false);
     }
 
     protected void tryAssemble() {
@@ -300,7 +462,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
             if (!(be instanceof RocketThrusterBlockEntity t) || t.isRemoved()
                     || t.getClass() != getClass() || !t.supportsMultiblock()
-                    || t.disassemblyCooldown > 0 || !t.topologyReady
+                    || !t.topologyReady
                     || t.tank == null || t.oxidizerTank == null) return false;
             if (t.isMultiblock()) {
                 RocketThrusterBlockEntity ctrl = t.getControllerBE();
@@ -325,17 +487,23 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
             net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, origin.offset(x, y, z));
             if (!(be instanceof RocketThrusterBlockEntity t) || t.tank == null || t.oxidizerTank == null) return;
+            members.add(t);
+        }
+        for (RocketThrusterBlockEntity t : members) {
             FluidStack fuel = t.tank.getPrimaryHandler().getFluid();
             FluidStack ox = t.oxidizerTank.getPrimaryHandler().getFluid();
-            if (!canPool(totalFuel, fuel, newCap) || !canPool(totalOxidizer, ox, newCap)) return;
+            if (!canPool(totalFuel, fuel, newCap) || !canPool(totalOxidizer, ox, newCap)) {
+                for (RocketThrusterBlockEntity member : members) member.waitingForFluids = true;
+                return;
+            }
             totalFuel = mergeFluid(totalFuel, fuel);
             totalOxidizer = mergeFluid(totalOxidizer, ox);
-            members.add(t);
         }
         RocketThrusterBlockEntity controller = members.get(0); // Origin is always first.
         double fuelRemainder = 0;
         double oxidizerRemainder = 0;
         for (RocketThrusterBlockEntity t : members) {
+            t.waitingForFluids = false;
             t.setTopologyReady(false);
             t.stopThrustForRebuild();
         }
@@ -348,7 +516,6 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             t.oxidizerDrainAccumulator = 0;
             t.controllerPos = t == controller ? null : origin.immutable();
             t.width = size;
-            t.invalidTopologyChecks = 0;
             t.updateConnectivity = false;
         }
         controller.tank.getPrimaryHandler().setCapacity(newCap);
@@ -375,13 +542,17 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         List<RocketThrusterBlockEntity> members = new ArrayList<>();
         members.add(this);
         // Only touch loaded cells that still claim THIS controller. Missing cells recover
-        // individually on their next tick; never load chunks or modify a neighbouring cube.
+        // individually on their next load event; never load chunks or modify a neighbouring cube.
         for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
             BlockPos pos = worldPosition.offset(x, y, z);
             if (pos.equals(worldPosition) || !isCellLoaded(pos) || !sameSubLevel(pos)) continue;
             net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
             if (be instanceof RocketThrusterBlockEntity t && t.getClass() == getClass()
                     && t.width == size && worldPosition.equals(t.controllerPos)) members.add(t);
+        }
+        for (RocketThrusterBlockEntity member : members) {
+            member.setTopologyReady(false);
+            member.stopThrustForRebuild();
         }
         // Fill only accepted amounts. The source retains any incompatible or excess fluid,
         // including components, instead of silently discarding a leftover pool.
@@ -392,7 +563,6 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         }
         for (RocketThrusterBlockEntity t : members) {
             t.resetMultiblockForRebuild();
-            t.disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
         }
     }
 
@@ -478,12 +648,12 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Override
     public void afterMove(ServerLevel oldLevel, ServerLevel newLevel, BlockState state, BlockPos oldPos, BlockPos newPos) {
-        // Relative offsets in copied NBT are not rotated by every schematic/move path.
-        // Retain local tank contents (even an old controller's whole cube tank).
-        resetMultiblockForRebuild();
-        disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
-        connectivityTicks = 0;
+        resetMultiblockForRebuild(); // Retains both complete local tank stacks.
+        lastKnownPos = worldPosition.immutable();
+        lastKnownFacing = getFacing();
         super.afterMove(oldLevel, newLevel, state, oldPos, newPos);
+        if (level instanceof ServerLevel serverLevel) requestConnectivityAround(serverLevel, worldPosition, false);
+        if (oldLevel != null) requestConnectivityAround(oldLevel, oldPos, true);
     }
 
     @Override
@@ -1164,6 +1334,11 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     protected void write(CompoundTag compound, net.minecraft.core.HolderLookup.Provider registries, boolean clientPacket) {
         super.write(compound, registries, clientPacket);
         compound.putInt("Width", width);
+        BlockPos knownPos = lastKnownPos == null ? worldPosition : lastKnownPos;
+        compound.putInt("LastKnownX", knownPos.getX());
+        compound.putInt("LastKnownY", knownPos.getY());
+        compound.putInt("LastKnownZ", knownPos.getZ());
+        compound.putInt("LastKnownFacing", (lastKnownFacing == null ? getFacing() : lastKnownFacing).ordinal());
         compound.putDouble("LastConsumedMbPerTick", lastConsumedMbPerTick);
         compound.putDouble("LastOxidizerConsumedMbPerTick", lastOxidizerConsumedMbPerTick);
         compound.putDouble("FuelDrainAccumulator", fuelDrainAccumulator);
@@ -1194,10 +1369,15 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     protected void read(CompoundTag compound, net.minecraft.core.HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
         width = Math.max(1, Math.min(MAX_WIDTH, compound.getInt("Width")));
+        lastKnownPos = compound.contains("LastKnownX") && compound.contains("LastKnownY") && compound.contains("LastKnownZ")
+                ? new BlockPos(compound.getInt("LastKnownX"), compound.getInt("LastKnownY"), compound.getInt("LastKnownZ")) : null;
+        int facingId = compound.getInt("LastKnownFacing");
+        lastKnownFacing = compound.contains("LastKnownFacing") && facingId >= 0 && facingId < Direction.values().length
+                ? Direction.values()[facingId] : null;
         controllerPos = compound.contains("ControllerOffX") && compound.contains("ControllerOffY")
                 && compound.contains("ControllerOffZ") ? worldPosition.offset(
-                compound.getInt("ControllerOffX"), compound.getInt("ControllerOffY"),
-                compound.getInt("ControllerOffZ")) : null;
+                        compound.getInt("ControllerOffX"), compound.getInt("ControllerOffY"),
+                        compound.getInt("ControllerOffZ")) : null;
         lastConsumedMbPerTick = compound.getDouble("LastConsumedMbPerTick");
         lastOxidizerConsumedMbPerTick = compound.getDouble("LastOxidizerConsumedMbPerTick");
         fuelDrainAccumulator = compound.getDouble("FuelDrainAccumulator");
@@ -1212,11 +1392,11 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         if (!clientPacket) {
             setTopologyReady(false);
             updateConnectivity = true; // Never trust a saved false one-shot retry flag.
-            disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
-            connectivityTicks = 0;
-            invalidTopologyChecks = 0;
             thrusterData.setThrust(0);
             isThrustDirty = true;
+            // In-place schematic/NBT writes may not be followed by onLoad again.
+            // If this instance is not attached yet, onLoad handles scheduling later.
+            requestConnectivityCheck(1, true);
         }
     }
 
