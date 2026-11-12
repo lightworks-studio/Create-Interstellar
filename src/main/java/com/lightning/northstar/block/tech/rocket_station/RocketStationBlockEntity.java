@@ -1,5 +1,6 @@
 package com.lightning.northstar.block.tech.rocket_station;
 
+import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.contraption.rocket.RocketContraption;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
 import com.lightning.northstar.contraption.rocket.RocketDestination;
@@ -46,18 +47,25 @@ public class RocketStationBlockEntity extends SmartBlockEntity
 
     @Override
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
-//        if (lastTeleportTime > 40 && //tick cooldown
-//                subLevel.latestLinearVelocity.y > 0.015
-//                && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()) {
-//            lastTeleportTime = 0;
-//            DimensionalTeleportUtils.warpSublevelToDestination(destination, worldPosition, subLevel, handle);
-//        }
-
-        if (lastTeleportTime == 0 && destination != null) {
-            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(destination, subLevel, handle, false);
+        if (lastTeleportTime > 100 && //tick cooldown
+                subLevel.latestLinearVelocity.y > 0.015
+                && subLevel.logicalPose().position().y > 200) {//NorthstarConfigs.server().atmosphereTeleportHeight.get()
+            lastTeleportTime = 0;
+            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(
+                    new RocketDestination(
+                            destination.dim(),
+                            new BlockPos(0, 100, 0),
+                            null),
+                    subLevel, handle, true);
             DimensionalTeleportUtils.warpSublevelToDestination(teleportProperties);
-            lastTeleportTime++;
         }
+        lastTeleportTime++;
+
+//        if (lastTeleportTime == 0 && destination != null) {
+//            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(destination, subLevel, handle, false);
+//            DimensionalTeleportUtils.warpSublevelToDestination(teleportProperties);
+//            lastTeleportTime++;
+//        }
 
     }
 
