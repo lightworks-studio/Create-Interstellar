@@ -42,7 +42,7 @@ public class DimensionalTeleportUtils {
 
 
 
-    public static void warpSublevelToDestination(TeleportProperties properties) {
+    private static void warpSublevelToDestination(TeleportProperties properties) {
 
         System.out.println("ATTEMPTING TO TELEPORT");
         final ServerLevel destLevel = properties.subLevel.getLevel().getServer().getLevel(properties.destination.dimKey());
