@@ -66,7 +66,7 @@ public class RocketStationBlockEntity extends SmartBlockEntity
                             Math.max(100, NorthstarConfigs.server().atmosphereTeleportHeight.get() - 100)
                             , 0), null),
                     subLevel, handle, true);
-            System.out.println("ATTEMPTING TO TELEPORT");
+
             SublevelDimensionalTeleportUtils.enqueueWarp(teleportProperties);
         }
         lastTeleportTime++;

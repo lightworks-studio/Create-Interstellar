@@ -44,7 +44,7 @@ public class ServerConfig extends ConfigBase {
 
     public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster properties");
 
-    public final ConfigFloat thrusterBaseThrust = f(100.0f, 1, 10_000_000, "baseThrust",
+    public final ConfigFloat thrusterBaseThrust = f(200.0f, 1, 10_000_000, "baseThrust",
             "Base thrust at redstone 15 and full obstruction efficiency for the standard thruster.",
             "Default tuned for 1000-unit thrust scale parity with Sable physics.",
             "Effective thrust uses: baseThrust * fuel_thrust_percent / 100.");

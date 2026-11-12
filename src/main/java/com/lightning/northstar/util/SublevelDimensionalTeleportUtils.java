@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.portal.DimensionTransition;
@@ -290,6 +291,8 @@ public class SublevelDimensionalTeleportUtils {
             return;
         }
 
+        LOGGER.info("ATTEMPTING TO TELEPORT SUBLEVEL SHIP");
+
 
         if (HOLDS.stream().anyMatch(hold -> hold.bodies().stream().anyMatch(body -> body.ship() == ship))) return;
 
@@ -314,10 +317,16 @@ public class SublevelDimensionalTeleportUtils {
         DEFERRED_WARPS.add(new WarpRequest(properties, List.copyOf(inhabitants.values())));
     }
 
-    private static void captureTree(Entity entity, ServerLevel source, Vec3 origin, Map<UUID, Inhabitant> inhabitants) {
+    private static boolean shouldCaptureEntity(Entity entity) {
         var type = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-        if (type.toString().equals("create:super_glue") || type.toString().equals("simulated:honey_glue")) return;
-        if (inhabitants.containsKey(entity.getUUID())) return;
+        if (type.toString().equals("create:super_glue") || type.toString().equals("simulated:honey_glue")) return false;
+        return entity instanceof LivingEntity; //TODO: Expand support for other entities such as boats
+    }
+
+    private static void captureTree(Entity entity, ServerLevel source, Vec3 origin, Map<UUID, Inhabitant> inhabitants) {
+
+        if (!shouldCaptureEntity(entity) || inhabitants.containsKey(entity.getUUID())) return;
+
         Vec3 worldPosition = Sable.HELPER.projectOutOfSubLevel(source, entity.position());
         Entity vehicle = entity.getVehicle();
         SeatAnchor anchor = null;
