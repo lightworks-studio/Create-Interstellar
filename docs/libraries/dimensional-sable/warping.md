@@ -32,19 +32,25 @@ before transfer and restores its saved, rotated velocities after recovery.
 
 ## Recovery hold
 
-Immediately before warping, Northstar saves and zeros each connected body's
-linear and angular velocity. Immediately after reconstruction, each destination
+At server tick-end, Northstar saves and zeros each connected body's
+linear and angular velocity and locks it to the world. Occupants selected by
+tracking or bounds have gravity disabled, motion cleared, and mob AI disabled.
+The transfer manifest and seats are captured on the next server tick, after
+one frozen simulation tick. Immediately after reconstruction, each destination
 body is attached to the world using a temporary fixed physics constraint.
 This keeps thrust and gravity from moving the ship during inhabitant recovery.
 Seat and positional recovery continue while the hold is active. Held ships do
 not enqueue another automatic warp.
 
-The hold lasts at least 40 ticks. Every captured player must exist in the
+The destination hold lasts at least 40 ticks. Every captured player must exist in the
 destination and have their saved mount restored, when applicable. Other
-inhabitants are given up to 100 ticks; they cannot hold the ship indefinitely.
-An unresolved player keeps the ship held, with status printed every 20 ticks.
+inhabitants are also checked. Recovery releases early only when all are ready;
+a 200-tick timeout (10 seconds at 20 TPS) releases even if recovery is incomplete,
+with readiness printed in the release log. Status is printed every 20 ticks.
 On release the constraints are removed and the saved rotated velocities are
-restored. Diagnostics: `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
+restored. Occupants' original gravity, mob AI, and entity velocity are restored
+as well. Unmounted occupants are repositioned during the destination hold.
+Diagnostics: `[ROCKET SOURCE FROZEN]`, `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
 `[ROCKET HOLD WAITING]`, and `[ROCKET HOLD RELEASED]`.
 
 ## Inhabitant transfer and limitations

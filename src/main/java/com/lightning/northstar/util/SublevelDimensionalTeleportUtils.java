@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaterniond;
@@ -49,6 +50,36 @@ public class SublevelDimensionalTeleportUtils {
     private record HeldBody(ServerSubLevel ship, FixedConstraintHandle lock, Vector3d linear, Vector3d angular) {}
     private record RecoveryHold(ServerLevel level, List<HeldBody> bodies, List<Inhabitant> inhabitants, int ticks) {}
     private static final Queue<RecoveryHold> HOLDS = new ConcurrentLinkedQueue<>();
+    private record Preparation(TeleportProperties properties, List<HeldBody> bodies) {}
+    private static final Queue<TeleportProperties> FREEZE_REQUESTS = new ConcurrentLinkedQueue<>();
+    private static final Queue<Preparation> PREPARATIONS = new ConcurrentLinkedQueue<>();
+    private record FrozenEntity(Entity original, boolean noGravity, boolean noAi, Vec3 velocity) {}
+    private static final Map<UUID, FrozenEntity> FROZEN_ENTITIES = new LinkedHashMap<>();
+    private static final Map<UUID, List<HeldBody>> SOURCE_HOLDS = new LinkedHashMap<>();
+
+    private static void freezeEntity(Entity entity) {
+        if (entity instanceof SeatEntity) return;
+        FROZEN_ENTITIES.putIfAbsent(entity.getUUID(), new FrozenEntity(entity, entity.isNoGravity(), entity instanceof Mob mob && mob.isNoAi(), entity.getDeltaMovement()));
+        entity.setNoGravity(true);
+        entity.setDeltaMovement(Vec3.ZERO);
+        if (entity instanceof Mob mob) mob.setNoAi(true);
+    }
+
+    private static void restoreEntities(RecoveryHold hold) {
+        for (Inhabitant inhabitant : hold.inhabitants()) {
+            FrozenEntity state = FROZEN_ENTITIES.remove(inhabitant.entity().getUUID());
+            if (state == null) continue;
+            Entity entity = null;
+            for (ServerLevel level : hold.level().getServer().getAllLevels()) {
+                entity = level.getEntity(inhabitant.entity().getUUID());
+                if (entity != null) break;
+            }
+            if (entity == null) continue;
+            entity.setNoGravity(state.noGravity());
+            entity.setDeltaMovement(state.velocity());
+            if (entity instanceof Mob mob) mob.setNoAi(state.noAi());
+        }
+    }
 
     private static boolean isHeld(ServerLevel level) {
         return HOLDS.stream().anyMatch(hold -> hold.level() == level);
@@ -64,6 +95,7 @@ public class SublevelDimensionalTeleportUtils {
             for (Inhabitant saved : hold.inhabitants()) {
                 if (saved.entity() instanceof SeatEntity) continue;
                 Entity entity = hold.level().getEntity(saved.entity().getUUID());
+                if (entity != null) freezeEntity(entity);
                 boolean ready = entity != null;
                 if (ready && saved.vehicle() != null) {
                     Entity vehicle = resolveSeat(hold.level(), saved.vehicle(), saved.anchor());
@@ -77,7 +109,8 @@ public class SublevelDimensionalTeleportUtils {
                 if (saved.entity() instanceof ServerPlayer) playersReady &= ready;
                 else othersReady &= ready;
             }
-            if (hold.ticks() >= 40 && playersReady && (othersReady || hold.ticks() >= 100)) {
+            if (hold.ticks() >= 40 && playersReady && othersReady || hold.ticks() >= 200) {
+                restoreEntities(hold);
                 for (HeldBody body : hold.bodies()) {
                     if (body.lock() != null && body.lock().isValid()) body.lock().remove();
                     RigidBodyHandle handle = RigidBodyHandle.of(body.ship());
@@ -140,7 +173,7 @@ public class SublevelDimensionalTeleportUtils {
             var ship = container == null ? null : container.getSubLevel(saved.ship());
             if (player != null && ship != null && !ship.isRemoved() && !player.isShiftKeyDown()) {
                 Vec3 target = ship.logicalPose().transformPosition(saved.localPosition());
-                if (!player.isPassenger() && (player.level() != saved.level() || player.position().distanceToSqr(target) > 64)) {
+                if (!player.isPassenger() && (player.level() != saved.level() || player.position().distanceToSqr(target) > (isHeld(saved.level()) ? 0.01 : 64))) {
                     LOGGER.warn("[ROCKET RECOVER ENTITY] ship={} entity={} target={} remaining={}", saved.ship(), describe(player), target, saved.attempts());
                     player.teleportTo(saved.level(), target.x, target.y, target.z, java.util.Set.of(), player.getYRot(), player.getXRot());
                 }
@@ -186,6 +219,12 @@ public class SublevelDimensionalTeleportUtils {
     }
 
     public static void enqueueWarp(TeleportProperties properties) {
+        if (FREEZE_REQUESTS.stream().anyMatch(p -> p.subLevel() == properties.subLevel())
+                || SOURCE_HOLDS.containsKey(properties.subLevel().getUniqueId())) return;
+        FREEZE_REQUESTS.add(properties);
+    }
+
+    private static void captureFrozenShip(TeleportProperties properties) {
         ServerSubLevel ship = properties.subLevel();
         if (HOLDS.stream().anyMatch(hold -> hold.bodies().stream().anyMatch(body -> body.ship() == ship))) return;
         ServerLevel source = ship.getLevel();
@@ -230,15 +269,47 @@ public class SublevelDimensionalTeleportUtils {
         inhabitants.put(entity.getUUID(), new Inhabitant(entity, worldPosition.subtract(origin),
                 vehicle == null ? null : vehicle.getUUID(), rocketSeat, anchor));
         for (Entity passenger : entity.getPassengers()) captureTree(passenger, source, origin, inhabitants);
+        freezeEntity(entity);
     }
 
     public static void processDeferredWarps() {
         recoverInhabitants();
         retrySeats();
         updateHolds();
+        Preparation prepared;
+        while ((prepared = PREPARATIONS.poll()) != null) captureFrozenShip(prepared.properties());
         WarpRequest request;
         while ((request = DEFERRED_WARPS.poll()) != null) {
             warpSublevelToDestination(request);
+        }
+        TeleportProperties freeze;
+        while ((freeze = FREEZE_REQUESTS.poll()) != null) {
+            if (freeze.subLevel().isRemoved() || freeze.subLevel().getLevel().dimension().equals(freeze.destination().dimKey())) continue;
+            if (freeze.subLevel().getLevel().getServer().getLevel(freeze.destination().dimKey()) == null) continue;
+            List<HeldBody> bodies = new java.util.ArrayList<>();
+            for (ServerSubLevel member : SubLevelWarper.getSubLevelGroup(freeze.subLevel())) {
+                RigidBodyHandle handle = RigidBodyHandle.of(member);
+                Vector3d linear = handle.getLinearVelocity(new Vector3d());
+                Vector3d angular = handle.getAngularVelocity(new Vector3d());
+                handle.addLinearAndAngularVelocity(new Vector3d(linear).negate(), new Vector3d(angular).negate());
+                Vector3d position = new Vector3d(member.logicalPose().position());
+                FixedConstraintHandle lock = SubLevelPhysicsSystem.get(member.getLevel()).getPipeline().addConstraint(null, member,
+                        new FixedConstraintConfiguration(position, member.logicalPose().transformPositionInverse(new Vector3d(position)), new Quaterniond(member.logicalPose().orientation())));
+                if (lock == null) throw new IllegalStateException("Could not freeze source ship " + member.getUniqueId());
+                bodies.add(new HeldBody(member, lock, linear, angular));
+            }
+            SOURCE_HOLDS.put(freeze.subLevel().getUniqueId(), bodies);
+            // Select occupants for immobilization now; the transfer manifest is captured next tick.
+            ServerLevel source = freeze.subLevel().getLevel();
+            for (Entity entity : source.getAllEntities()) {
+                var tracked = Sable.HELPER.getTrackingSubLevel(entity);
+                if (bodies.stream().anyMatch(body -> body.ship() == tracked || body.ship().boundingBox().toMojang().inflate(1).intersects(entity.getBoundingBox()))) {
+                    var id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+                    if (!id.equals("create:super_glue") && !id.equals("simulated:honey_glue")) freezeEntity(entity);
+                }
+            }
+            PREPARATIONS.add(new Preparation(freeze, bodies));
+            LOGGER.info("[ROCKET SOURCE FROZEN] ship={} capture=next_server_tick", freeze.subLevel().getUniqueId());
         }
     }
 
@@ -290,9 +361,15 @@ public class SublevelDimensionalTeleportUtils {
             if (handle == null || !handle.isValid()) throw new IllegalStateException("Cannot hold rocket body " + member.getUniqueId());
             Vector3d linear = handle.getLinearVelocity(new Vector3d());
             Vector3d angular = handle.getAngularVelocity(new Vector3d());
+            List<HeldBody> sourceBodies = SOURCE_HOLDS.get(properties.subLevel.getUniqueId());
+            if (sourceBodies != null) for (HeldBody body : sourceBodies) {
+                if (body.ship() == member) { linear = new Vector3d(body.linear()); angular = new Vector3d(body.angular()); }
+            }
             velocities.put(member.getUniqueId(), new Vector3d[]{rotation.transform(new Vector3d(linear)), rotation.transform(new Vector3d(angular))});
-            handle.addLinearAndAngularVelocity(new Vector3d(linear).negate(), new Vector3d(angular).negate());
+            handle.addLinearAndAngularVelocity(handle.getLinearVelocity(new Vector3d()).negate(), handle.getAngularVelocity(new Vector3d()).negate());
         }
+        List<HeldBody> sourceBodies = SOURCE_HOLDS.remove(properties.subLevel.getUniqueId());
+        if (sourceBodies != null) for (HeldBody body : sourceBodies) if (body.lock().isValid()) body.lock().remove();
         LOGGER.info("[ROCKET HOLD BEFORE WARP] bodies={}", velocities.keySet());
         int warped = SubLevelWarper.warpConnectedSubLevels(properties.subLevel, destLevel, destPos, rotation);
         LOGGER.info("[ROCKET WARP RESULT] ship={} warped={} expectedInhabitants={}", properties.subLevel.getUniqueId(), warped, request.inhabitants().size());
