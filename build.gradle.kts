@@ -7,7 +7,7 @@ plugins {
     kotlin("jvm") version "2.1.21"
 }
 
-version = "1.0.0+1.21.1"
+version = "0.0.1-alpha"
 group = "com.lightning.northstar"
 
 java {
@@ -198,6 +198,8 @@ dependencies {
     //NeoForge 1.1.0 build of project Iq9c4mLa (version id qU6WVBqC; WHNBfjyl is the Fabric build)
     jarJar(implementation("maven.modrinth:Iq9c4mLa:qU6WVBqC")!!)
 
+
+    runtimeOnly("maven.modrinth:fyecrpLB:MHxbi4Pb")
 
     "tfmgCeImplementation"(libs.tfmg.ce)
 

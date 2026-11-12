@@ -185,7 +185,7 @@ public class RocketContraption extends TranslatingContraption {
     }
 
     public float getTargetingComputerReduction() {
-        return (float) (NorthstarConfigs.server().targetingComputerEfficiency.get() * Math.min((float) computerCount / NorthstarConfigs.server().targetingComputersNeeded.get(), 1f));
+        return (float) (NorthstarConfigs.server().contraption_targetingComputerEfficiency.get() * Math.min((float) computerCount / NorthstarConfigs.server().contraption_targetingComputersNeeded.get(), 1f));
     }
 
     public FuelCost calculateRequiredFuel(
@@ -215,7 +215,7 @@ public class RocketContraption extends TranslatingContraption {
     }
 
     public int calculateRequiredThrusters(float gravity) {
-        return Math.max(1, Mth.ceil(gravity * weight / NorthstarConfigs.server().thrusterPower.get()));
+        return Math.max(1, Mth.ceil(gravity * weight / NorthstarConfigs.server().contraption_thrusterPower.get()));
     }
 
     public boolean isClearForLaunch(Level origin, Level destination) {

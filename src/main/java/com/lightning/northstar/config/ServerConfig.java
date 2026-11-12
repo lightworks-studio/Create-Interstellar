@@ -1,7 +1,6 @@
 package com.lightning.northstar.config;
 
 import net.createmod.catnip.config.ConfigBase;
-import net.createmod.catnip.config.ConfigBase.CValue;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
@@ -22,19 +21,20 @@ public class ServerConfig extends ConfigBase {
     // For default worlds (max Y = 320), fade at 800 until 1000 and change dimension at 2000
     public final ConfigInt atmosphereBaseHeight = i(480, "atmosphereBaseHeight", "The height after which the atmosphere starts to fade out. Relative to the maximum build height.");
     public final ConfigInt atmosphereThickness = i(200, 1, "atmosphereThickness", "The thickness of the atmosphere");
-    public final ConfigInt atmosphereTeleportHeight = i(1000, 0, "atmosphereTeleportHeight", "The height at which the rocket changes dimension, relative to the atmosphere base height + thickness");
+    public final ConfigInt atmosphereTeleportHeight = i(2000, 0, "atmosphereTeleportHeight", "The height at which the rocket changes dimension, relative to the atmosphere base height + thickness");
     public final ConfigBool allowDimensionTraversal = b(true, "allowDimensionTraversal");
 
-    public final ConfigGroup rocket = group(1, "rocket");
+    public final ConfigGroup rocket = group(1, "rocket contraption");
 
-    public final ConfigBool enableReturnTicketCreation = b(true, "enableReturnTicketCreation", "Wether return tickets should be created after the rocket lands.");
-    public final ConfigFloat targetingComputerEfficiency = f(0.4f, 0f, 1f, "targetingComputerEfficiency", "The total fuel efficiency applied for the maximum amount of targeting computers");
-    public final ConfigInt targetingComputersNeeded = i(48, 0, "targetingComputersNeeded", "The amount of targeting computers required to reach maximum efficiency");
-    public final ConfigInt launchCountdownRadius = i(20, 0, "launchCountdownRadius", "From how far away should the launch countdown messages/sound be announced to players");
-    public final ConfigFloat thrusterPower = f(500, 1, "thrusterPower", "The engine's force in Newtons (kg/m/s^2) assuming rocket weight is in kg");
-    public final ConfigFloat landingMaxSafeSpeed = f(5, 0, "landingMaxSafeSpeed", "The maximum safe speed in blocks/second the rocket can move at before exploding on landing");
-    public final ConfigFloat rocketExplosionFraction = f(0.005f, 0, 1, "explosionFraction", "The fraction of blocks to explode when a rocket crash lands. Set to zero to disable.");
-    public final ConfigInt rocketExplosionSize = i(8, 1, "explosionSize", "The size of individual explosions when a rocket crash lands.");
+    public final ConfigBool contraption_enableReturnTicketCreation = b(true, "enableReturnTicketCreation", "Wether return tickets should be created after the rocket lands.");
+    public final ConfigFloat contraption_targetingComputerEfficiency = f(0.4f, 0f, 1f, "targetingComputerEfficiency", "The total fuel efficiency applied for the maximum amount of targeting computers");
+    public final ConfigInt contraption_targetingComputersNeeded = i(48, 0, "targetingComputersNeeded", "The amount of targeting computers required to reach maximum efficiency");
+    public final ConfigInt contraption_launchCountdownRadius = i(20, 0, "launchCountdownRadius", "From how far away should the launch countdown messages/sound be announced to players");
+    public final ConfigFloat contraption_thrusterPower = f(500, 1, "thrusterPower", "The engine's force in Newtons (kg/m/s^2) assuming rocket weight is in kg");
+    public final ConfigFloat contraption_maxVelocity = f(100, 0, "maxVelocity", "The maximum linear velocity of a rocket sub-level in blocks/second. Set to 0 to disable the limit.");
+    public final ConfigFloat contraption_landingMaxSafeSpeed = f(5, 0, "landingMaxSafeSpeed", "The maximum safe speed in blocks/second the rocket can move at before exploding on landing");
+    public final ConfigFloat contraption_rocketExplosionFraction = f(0.005f, 0, 1, "explosionFraction", "The fraction of blocks to explode when a rocket crash lands. Set to zero to disable.");
+    public final ConfigInt contraption_rocketExplosionSize = i(8, 1, "explosionSize", "The size of individual explosions when a rocket crash lands.");
 
     public final ConfigGroup rocketFuel = group(2, "fuel", "Fuel properties for rockets");
 
@@ -44,10 +44,11 @@ public class ServerConfig extends ConfigBase {
 
     public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster properties");
 
-    public final ConfigFloat thrusterBaseThrust = f(533.333f, 1, 10_000_000, "baseThrust",
+    public final ConfigFloat thrusterBaseThrust = f(200.0f, 1, 10_000_000, "baseThrust",
             "Base thrust at redstone 15 and full obstruction efficiency for the standard thruster.",
             "Default tuned for 1000-unit thrust scale parity with Sable physics.",
             "Effective thrust uses: baseThrust * fuel_thrust_percent / 100.");
+
     public final ConfigInt thrusterObstructionScanLength = i(10, 1, 64, "obstructionScanLength",
             "How many blocks behind the nozzle are checked for obstruction.");
     public final ConfigBool thrusterObstructionIgnoreOtherSubLevels = b(true, "obstructionIgnoreOtherSubLevels",
@@ -63,9 +64,9 @@ public class ServerConfig extends ConfigBase {
 
     public final ConfigGroup thrusterMultiblock = group(2, "multiblockThruster", "Multiblock thruster properties");
 
-    public final ConfigFloat thrusterMultiblock2xThrustMultiplier = f(1.25f, 0.01f, 10, "multiblock2xThrustMultiplier",
+    public final ConfigFloat thrusterMultiblock2xThrustMultiplier = f(1.125f, 0.01f, 10, "multiblock2xThrustMultiplier",
             "Thrust multiplier for a 2x2x2 multiblock thruster (e.g. 1.10 = 10% bonus).");
-    public final ConfigFloat thrusterMultiblock3xThrustMultiplier = f(1.5f, 0.01f, 10, "multiblock3xThrustMultiplier",
+    public final ConfigFloat thrusterMultiblock3xThrustMultiplier = f(1.25f, 0.01f, 10, "multiblock3xThrustMultiplier",
             "Thrust multiplier for a 3x3x3 multiblock thruster (e.g. 1.25 = 25% bonus).");
     public final ConfigFloat thrusterMultiblock2xFuelEfficiency = f(0.6f, 0.01f, 10, "multiblock2xFuelEfficiency",
             "Fuel cost multiplier for a 2x2x2 multiblock thruster (e.g. 1.0 = no reduction, 0.8 = 20% cheaper).");

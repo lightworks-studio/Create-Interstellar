@@ -48,6 +48,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
+import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.registries.DataPackRegistryEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -160,6 +162,16 @@ public class Northstar {
         @SubscribeEvent
         public static void processDeferredWarps(ServerTickEvent.Post event) {
             SublevelDimensionalTeleportUtils.processDeferredWarps();
+        }
+
+        @SubscribeEvent
+        public static void onServerStarting(ServerStartingEvent event) {
+            SublevelDimensionalTeleportUtils.reset();
+        }
+
+        @SubscribeEvent
+        public static void onServerStopping(ServerStoppingEvent event) {
+            SublevelDimensionalTeleportUtils.reset();
         }
 
         @SubscribeEvent

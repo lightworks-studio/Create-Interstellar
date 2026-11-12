@@ -377,7 +377,7 @@ public class RocketStationScreen extends AbstractSimiContainerScreen<RocketStati
                 Component.empty()
                         .append(NorthstarLang.numberDirect(contraption.computerCount).withStyle(ChatFormatting.GREEN))
                         .append(Component.literal(" / ").withStyle(ChatFormatting.GRAY))
-                        .append(NorthstarLang.numberDirect(NorthstarConfigs.server().targetingComputersNeeded.get()).withStyle(ChatFormatting.AQUA))
+                        .append(NorthstarLang.numberDirect(NorthstarConfigs.server().contraption_targetingComputersNeeded.get()).withStyle(ChatFormatting.AQUA))
                         .append(" ")
                         .append(Component.translatable("northstar.gui.rocket_station.fuel_reduction", LangNumberFormat.format(Mth.floor(contraption.getTargetingComputerReduction() * 100))))
         ).northstar$onHover(HoverEvent.Action.SHOW_TEXT, Component.translatable("northstar.gui.rocket_station.targeting_computers.tip"));

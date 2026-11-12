@@ -18,12 +18,16 @@ Its Minecraft `DimensionArgument` supports loaded vanilla and modded dimensions.
 ## Rocket station
 
 The station checks upward velocity and the configured atmosphere height in its
-Sable physics callback, then queues a warp. `ServerTickEvent.Post` processes
+Sable physics callback, then queues a warp. Each physics tick it also clamps
+the sub-level's linear velocity to the configured maximum (`maxVelocity`,
+blocks/second) before the teleport check. `ServerTickEvent.Post` processes
 the queue after the server's level ticks, avoiding removal of the active
-physics body inside a physics callback. The destination dimension comes from
-the configured `RocketDestination`; the station currently constructs a target
-at X/Z zero and the configured atmosphere height. The utility centers a target
-block position, or retains the ship's current position when none is supplied.
+physics body inside a physics callback. `enqueueWarp` cancels the request and
+logs `[ROCKET WARP CANCELLED]` when the destination dimension equals the
+ship's current dimension. The destination dimension comes from the configured
+`RocketDestination`; the station currently constructs a target at X/Z zero and
+the configured atmosphere height. The utility centers a target block position,
+or retains the ship's current position when none is supplied.
 
 When requested, the utility supplies a 180° rotation about an axis perpendicular
 to the rocket's current up direction. Dimensional-Sable applies that rotation
@@ -32,26 +36,26 @@ before transfer and restores its saved, rotated velocities after recovery.
 
 ## Recovery hold
 
-At server tick-end, Northstar saves and zeros each connected body's
-linear and angular velocity and locks it to the world. Occupants selected by
-tracking or bounds have gravity disabled, motion cleared, and mob AI disabled.
-The transfer manifest and seats are captured on the next server tick, after
-one frozen simulation tick. Immediately after reconstruction, each destination
-body is attached to the world using a temporary fixed physics constraint.
-This keeps thrust and gravity from moving the ship during inhabitant recovery.
-Seat and positional recovery continue while the hold is active. Held ships do
-not enqueue another automatic warp.
+Immediately before warping, `freezeConnectedSubLevels` saves and zeros each
+connected body's linear and angular velocity. Each frozen body's UUID is kept
+in the utility's frozen set, so `isFrozen(subLevel)` lets physics actors (such
+as the rocket station) skip velocity changes while the hold owns the body. If
+the warp does not happen, `thaw` restores the original velocities and clears
+the frozen flag. Immediately after reconstruction, each destination body is
+attached to the world using a temporary fixed physics constraint. This keeps
+thrust and gravity from moving the ship during inhabitant recovery. Seat and
+positional recovery continue while the hold is active. Held ships do not
+enqueue another automatic warp.
 
-The destination hold lasts at least 40 ticks. Every captured player must exist in the
+The hold lasts at least 40 ticks. Every captured player must exist in the
 destination and have their saved mount restored, when applicable. Other
-inhabitants are also checked. Recovery releases early only when all are ready;
-a 200-tick timeout (10 seconds at 20 TPS) releases even if recovery is incomplete,
-with readiness printed in the release log. Status is printed every 20 ticks.
+inhabitants are given up to 100 ticks; they cannot hold the ship indefinitely.
+An unresolved player keeps the ship held, with status printed every 20 ticks.
 On release the constraints are removed and the saved rotated velocities are
-restored. Occupants' original gravity, mob AI, and entity velocity are restored
-as well. Unmounted occupants are repositioned during the destination hold.
-Diagnostics: `[ROCKET SOURCE FROZEN]`, `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
-`[ROCKET HOLD WAITING]`, and `[ROCKET HOLD RELEASED]`.
+restored. Diagnostics: `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
+`[ROCKET HOLD WAITING]`, `[ROCKET HOLD RELEASED]`, and `[ROCKET WARP FAILED]`.
+All warp state (pending warps, holds, recovery queues, and frozen ships) is
+cleared when the server starts and stops.
 
 ## Inhabitant transfer and limitations
 

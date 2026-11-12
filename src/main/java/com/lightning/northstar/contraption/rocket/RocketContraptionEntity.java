@@ -201,7 +201,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
                         if (dropDown) {
                             acceleration = -Math.max(level.northstar$gravityScale(), MINIMUM_GRAVITY);
                         } else {
-                            acceleration = -level.northstar$gravity() + contraption.thrusterCount * NorthstarConfigs.server().thrusterPower.getF() / contraption.weight;
+                            acceleration = -level.northstar$gravity() + contraption.thrusterCount * NorthstarConfigs.server().contraption_thrusterPower.getF() / contraption.weight;
                         }
 
                         acceleration = Mth.clamp(acceleration, -MAX_ACCELERATION, MAX_ACCELERATION) * 0.05f; // m/s^2 -> m/s/t
@@ -296,7 +296,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
                     } else {
                         float acceleration = -Math.max(level.northstar$gravity(), MINIMUM_GRAVITY);
 
-                        float deceleration = contraption.thrusterCount * NorthstarConfigs.server().thrusterPower.getF() / contraption.weight;
+                        float deceleration = contraption.thrusterCount * NorthstarConfigs.server().contraption_thrusterPower.getF() / contraption.weight;
                         float safeDistance = velocity * velocity / (2f * Mth.clamp(acceleration + deceleration, -MAX_ACCELERATION, MAX_ACCELERATION)) * 20;
 
                         if (!contraption.hasAutoLander) {
@@ -315,7 +315,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
                                     );
                                 }
 
-                                float safeSpeed = NorthstarConfigs.server().landingMaxSafeSpeed.getF();
+                                float safeSpeed = NorthstarConfigs.server().contraption_landingMaxSafeSpeed.getF();
                                 Component information = Component.translatable(
                                         "northstar.contraption.rocket.speed_information",
                                         Component.literal("%2.1f m/s".formatted(velocity * 20))
@@ -364,7 +364,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
                         sendSyncPacket();
                         dismountPassengers();
 
-                        if (hasCollided && Math.abs(velocity) * 20 > NorthstarConfigs.server().landingMaxSafeSpeed.get() && !contraption.hasAutoLander) {
+                        if (hasCollided && Math.abs(velocity) * 20 > NorthstarConfigs.server().contraption_landingMaxSafeSpeed.get() && !contraption.hasAutoLander) {
                             ServerPlayer player = level.getServer().getPlayerList().getPlayer(launchingPlayer);
                             if (player != null) {
                                 player.awardStat(NorthstarStats.ROCKET_CRASHES);
@@ -454,7 +454,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
                     sendSyncPacket();
                     dismountPassengers();
 
-                    for (ServerPlayer p : level().getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(NorthstarConfigs.server().launchCountdownRadius.get()))) {
+                    for (ServerPlayer p : level().getEntitiesOfClass(ServerPlayer.class, getBoundingBox().inflate(NorthstarConfigs.server().contraption_launchCountdownRadius.get()))) {
                         p.sendSystemMessage(Component.translatable("northstar.contraption.rocket.launch_aborted"), true);
                         p.playNotifySound(SoundEvents.VILLAGER_NO, SoundSource.PLAYERS, 1, 1);
                     }
@@ -495,8 +495,8 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
         Level level = level();
         boolean fire = level.northstar$oxygen().hasOxygen();
         List<BlockPos> blocks = new ArrayList<>(contraption.getBlocks().keySet());
-        int count = Mth.ceil(blocks.size() * NorthstarConfigs.server().rocketExplosionFraction.get());
-        int size = NorthstarConfigs.server().rocketExplosionSize.get();
+        int count = Mth.ceil(blocks.size() * NorthstarConfigs.server().contraption_rocketExplosionFraction.get());
+        int size = NorthstarConfigs.server().contraption_rocketExplosionSize.get();
 
         disassemble();
 
@@ -517,7 +517,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
         Minecraft minecraft = Minecraft.getInstance();
         if (countdown % 20 == 0 &&
             minecraft.player != null &&
-            minecraft.player.getBoundingBox().intersects(getBoundingBox().inflate(NorthstarConfigs.server().launchCountdownRadius.get()))) {
+            minecraft.player.getBoundingBox().intersects(getBoundingBox().inflate(NorthstarConfigs.server().contraption_launchCountdownRadius.get()))) {
             var color = switch (countdown / 20) {
                 case 0 -> ChatFormatting.DARK_RED;
                 case 1 -> ChatFormatting.RED;
@@ -659,7 +659,7 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
     }
 
     private void createReturnTicket() {
-        if (!NorthstarConfigs.server().enableReturnTicketCreation.get()) {
+        if (!NorthstarConfigs.server().contraption_enableReturnTicketCreation.get()) {
             return;
         }
 
