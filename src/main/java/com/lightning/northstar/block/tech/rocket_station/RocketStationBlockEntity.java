@@ -50,10 +50,10 @@ public class RocketStationBlockEntity extends SmartBlockEntity
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
         if (lastTeleportTime > 100 && //tick cooldown
                 subLevel.latestLinearVelocity.y > 0.015
-                && subLevel.logicalPose().position().y > 250) {//NorthstarConfigs.server().atmosphereTeleportHeight.get()
+                && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()) {
             lastTeleportTime = 0;
             teleportProperties = new DimensionalTeleportUtils.TeleportProperties(
-                    new RocketDestination(destination.dim(), new BlockPos(0, 250, 0), null),
+                    new RocketDestination(destination.dim(), new BlockPos(0, NorthstarConfigs.server().atmosphereTeleportHeight.get(), 0), null),
                     subLevel, handle, true);
             DimensionalTeleportUtils.enqueueWarp(teleportProperties);
         }
