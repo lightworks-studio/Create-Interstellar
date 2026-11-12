@@ -9,9 +9,11 @@ import dev.egg.dimensionalsable.SubLevelWarper;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.physics.constraint.FixedConstraintConfiguration;
 import dev.ryanhcode.sable.api.physics.constraint.FixedConstraintHandle;
+import dev.ryanhcode.sable.api.physics.force.QueuedForceGroup;
 import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
+import dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import net.minecraft.core.BlockPos;
@@ -67,6 +69,15 @@ public class SublevelDimensionalTeleportUtils {
     private static final int MIN_HOLD_TICKS = 40;
     private static final int MAX_HOLD_TICKS = 100;
     private static final int RECOVERY_ATTEMPTS = 40;
+    /**
+     * How many consecutive ticks a velocity phase may make no measurable progress before it is
+     * force-completed. Some force sources (notably Sable's built-in floating-block and
+     * reaction-wheel controllers) apply impulses directly instead of using a queued force group,
+     * so {@link #onPrePhysicsTick} cannot cancel them. Detecting a stall rather than using a fixed
+     * duration keeps the configured slowdown/acceleration rates authoritative even when they are
+     * set very low — a phase that is still making progress is never cut short.
+     */
+    private static final int MAX_STALL_TICKS = 20 * 5;
 
     // ---------------------------------------------------------------------------------------------
     // Saved state records
@@ -106,7 +117,8 @@ public class SublevelDimensionalTeleportUtils {
     private record RampBody(ServerSubLevel ship, Vector3d linear, Vector3d angular) {
     }
 
-    private record VelocityRamp(ServerLevel level, List<RampBody> bodies) {
+    private record VelocityRamp(ServerLevel level, List<RampBody> bodies,
+                                double lastError, int stalledTicks) {
     }
 
     /** A warp waiting for its ship to coast to a halt before the dimension transfer starts. */
@@ -114,6 +126,9 @@ public class SublevelDimensionalTeleportUtils {
         final TeleportProperties properties;
         final List<ServerSubLevel> group;
         final Map<UUID, SavedVelocity> targets;
+        double lastSpeed = Double.MAX_VALUE;
+        int stalledTicks;
+        int ticks;
 
         SlowingWarp(TeleportProperties properties, List<ServerSubLevel> group,
                     Map<UUID, SavedVelocity> targets) {
@@ -163,6 +178,44 @@ public class SublevelDimensionalTeleportUtils {
     public static boolean isVelocityControlled(ServerSubLevel subLevel) {
         UUID id = subLevel.getUniqueId();
         return FROZEN_SHIPS.contains(id) || SLOWING_SHIPS.contains(id) || RAMPING_SHIPS.contains(id);
+    }
+
+    /**
+     * Cancels every queued force on warp-controlled ships, once per physics substep.
+     *
+     * <p>Sable fires {@link ForgeSablePrePhysicsTickEvent} after all block-entity actors and
+     * Sable's own lift/drag providers have queued their forces, but before
+     * {@code ServerSubLevel.applyQueuedForces} applies them. Resetting the queued groups here
+     * therefore neutralises thrusters, lift providers, balloons, fans and any other addon that
+     * uses Sable's force-group API, no matter which mod added them. This is the single choke point
+     * that lets the warp own the ship's velocity instead of adding a guard to every known force
+     * source.</p>
+     *
+     * <p>Forces applied directly through {@link RigidBodyHandle} (Sable's built-in
+     * floating-block and reaction-wheel controllers) cannot be removed here; the post-tick
+     * slowdown/ramp plus stall detection keep those from stalling a warp forever.</p>
+     */
+    public static void onPrePhysicsTick(ForgeSablePrePhysicsTickEvent event) {
+        ServerLevel level = event.getPhysicsSystem().getLevel();
+        var container = SubLevelContainer.getContainer(level);
+        if (container == null) {
+            return;
+        }
+
+        for (ServerSubLevel subLevel : container.getAllSubLevels()) {
+            if (!isVelocityControlled(subLevel)) {
+                continue;
+            }
+
+            var forceGroups = subLevel.getQueuedForceGroups();
+            if (forceGroups == null) {
+                continue;
+            }
+            for (QueuedForceGroup forceGroup : forceGroups.values()) {
+                // Clear this substep's accumulated impulse so it is never applied to the body.
+                forceGroup.reset();
+            }
+        }
     }
 
     /** Clears all per-server warp state so stale holds or flags cannot leak between worlds. */
@@ -260,8 +313,25 @@ public class SublevelDimensionalTeleportUtils {
     private static void tickSlowingWarps() {
         for (Map.Entry<UUID, SlowingWarp> entry : SLOWING_WARPS.entrySet()) {
             SlowingWarp warp = entry.getValue();
-            if (warp.properties.subLevel().isRemoved() || decelerateShip(warp)) {
+            warp.ticks++;
+
+            boolean removed = warp.properties.subLevel().isRemoved();
+
+            // Track whether the deceleration is actually reducing the group's total speed. A
+            // direct-impulse force source can exactly cancel the configured slowdown; in that case
+            // completeSlowingWarp force-freezes (and therefore zeroes) the ship instead of letting
+            // the warp hang forever with thrusters suppressed.
+            double speed = totalSpeed(warp.group);
+            warp.stalledTicks = speed < warp.lastSpeed - STOP_EPSILON ? 0 : warp.stalledTicks + 1;
+            warp.lastSpeed = speed;
+            boolean stalled = !removed && warp.stalledTicks >= MAX_STALL_TICKS;
+
+            if (removed || decelerateShip(warp) || stalled) {
                 if (SLOWING_WARPS.remove(entry.getKey(), warp)) {
+                    if (stalled) {
+                        LOGGER.warn("[ROCKET WARP SLOWDOWN STALLED] ship={} ticks={} speed={}",
+                                warp.properties.subLevel().getUniqueId(), warp.ticks, speed);
+                    }
                     completeSlowingWarp(warp);
                 }
             }
@@ -300,6 +370,23 @@ public class SublevelDimensionalTeleportUtils {
             }
         }
         return stopped;
+    }
+
+    /** Sums the linear and angular speed of every living body in the group. */
+    private static double totalSpeed(List<ServerSubLevel> group) {
+        double total = 0.0d;
+        for (ServerSubLevel member : group) {
+            if (member.isRemoved()) {
+                continue;
+            }
+            RigidBodyHandle handle = RigidBodyHandle.of(member);
+            if (handle == null || !handle.isValid()) {
+                continue;
+            }
+            total += handle.getLinearVelocity(new Vector3d()).length();
+            total += handle.getAngularVelocity(new Vector3d()).length();
+        }
+        return total;
     }
 
     /**
@@ -682,6 +769,10 @@ public class SublevelDimensionalTeleportUtils {
                 break;
             }
 
+            // Queued forces are cancelled before they are applied, but a direct-impulse force
+            // source can still nudge a held body; keep the whole group pinned at rest.
+            zeroHeldVelocities(hold);
+
             boolean playersReady = true;
             boolean othersReady = true;
             for (Inhabitant saved : hold.inhabitants()) {
@@ -717,6 +808,22 @@ public class SublevelDimensionalTeleportUtils {
                 }
                 HOLDS.add(new RecoveryHold(hold.level(), hold.bodies(), hold.inhabitants(), hold.ticks() + 1));
             }
+        }
+    }
+
+    /** Zeroes the velocity of every body held by the destination constraints. */
+    private static void zeroHeldVelocities(RecoveryHold hold) {
+        for (HeldBody body : hold.bodies()) {
+            if (body.ship().isRemoved()) {
+                continue;
+            }
+            RigidBodyHandle handle = RigidBodyHandle.of(body.ship());
+            if (handle == null || !handle.isValid()) {
+                continue;
+            }
+            handle.addLinearAndAngularVelocity(
+                    handle.getLinearVelocity(new Vector3d()).negate(),
+                    handle.getAngularVelocity(new Vector3d()).negate());
         }
     }
 
@@ -766,7 +873,7 @@ public class SublevelDimensionalTeleportUtils {
         for (RampBody body : bodies) {
             RAMPING_SHIPS.add(body.ship().getUniqueId());
         }
-        VELOCITY_RAMPS.add(new VelocityRamp(level, bodies));
+        VELOCITY_RAMPS.add(new VelocityRamp(level, bodies, Double.MAX_VALUE, 0));
         LOGGER.info("[ROCKET VELOCITY RAMP START] level={} bodies={}",
                 level.dimension().location(), bodies.size());
     }
@@ -780,62 +887,90 @@ public class SublevelDimensionalTeleportUtils {
             }
 
             double maxDelta = perTick(NorthstarConfigs.server().contraption_warpAcceleration.getF());
-            boolean finished = true;
+            double error = 0.0d;
             for (RampBody body : ramp.bodies()) {
-                finished &= rampBody(body, maxDelta);
+                error += rampBody(body, maxDelta);
             }
 
-            if (finished) {
+            boolean finished = error <= STOP_EPSILON;
+            // A direct-impulse force source can keep the ramp from converging. If the remaining
+            // error stops shrinking, release control at the intended velocity rather than leaving
+            // the ship permanently throttled. Normal ramps always make progress and are never cut
+            // short, regardless of how low the configured acceleration is.
+            int stalledTicks = error < ramp.lastError() - STOP_EPSILON ? 0 : ramp.stalledTicks() + 1;
+            boolean stalled = !finished && stalledTicks >= MAX_STALL_TICKS;
+            if (finished || stalled) {
+                if (stalled) {
+                    LOGGER.warn("[ROCKET VELOCITY RAMP STALLED] level={} bodies={} error={}",
+                            ramp.level().dimension().location(), ramp.bodies().size(), error);
+                    finishVelocityRamp(ramp);
+                }
                 for (RampBody body : ramp.bodies()) {
                     RAMPING_SHIPS.remove(body.ship().getUniqueId());
                 }
                 LOGGER.info("[ROCKET VELOCITY RAMP COMPLETE] level={} bodies={}",
                         ramp.level().dimension().location(), ramp.bodies().size());
             } else {
-                VELOCITY_RAMPS.add(ramp);
+                VELOCITY_RAMPS.add(new VelocityRamp(ramp.level(), ramp.bodies(), error, stalledTicks));
             }
+        }
+    }
+
+    /** Forces every ramp body onto its saved target before releasing velocity ownership. */
+    private static void finishVelocityRamp(VelocityRamp ramp) {
+        for (RampBody body : ramp.bodies()) {
+            if (body.ship().isRemoved()) {
+                continue;
+            }
+            RigidBodyHandle handle = RigidBodyHandle.of(body.ship());
+            if (handle == null || !handle.isValid()) {
+                continue;
+            }
+            handle.addLinearAndAngularVelocity(
+                    new Vector3d(body.linear()).sub(handle.getLinearVelocity(new Vector3d())),
+                    new Vector3d(body.angular()).sub(handle.getAngularVelocity(new Vector3d())));
         }
     }
 
     /**
      * Moves one body's linear and angular velocity toward its target by at most {@code maxDelta}.
      *
-     * @return {@code true} when the body has reached its target
+     * @return the velocity error that remains after this step (zero when the target is reached)
      */
-    private static boolean rampBody(RampBody body, double maxDelta) {
+    private static double rampBody(RampBody body, double maxDelta) {
         RigidBodyHandle handle = RigidBodyHandle.of(body.ship());
         if (body.ship().isRemoved() || handle == null || !handle.isValid()) {
-            return true;
+            return 0.0d;
         }
 
         Vector3d linearDelta = new Vector3d();
         Vector3d angularDelta = new Vector3d();
-        boolean linearDone = approachVelocity(handle.getLinearVelocity(new Vector3d()),
+        double linearRemaining = approachVelocity(handle.getLinearVelocity(new Vector3d()),
                 body.linear(), maxDelta, linearDelta);
-        boolean angularDone = approachVelocity(handle.getAngularVelocity(new Vector3d()),
+        double angularRemaining = approachVelocity(handle.getAngularVelocity(new Vector3d()),
                 body.angular(), maxDelta, angularDelta);
 
         if (linearDelta.lengthSquared() > 0.0d || angularDelta.lengthSquared() > 0.0d) {
             handle.addLinearAndAngularVelocity(linearDelta, angularDelta);
         }
-        return linearDone && angularDone;
+        return linearRemaining + angularRemaining;
     }
 
     /**
      * Computes the velocity delta that moves {@code current} toward {@code target} by at most
      * {@code maxDelta} and writes it into {@code deltaOut}.
      *
-     * @return {@code true} when the target is reached within this step
+     * @return the error that will remain after the delta is applied
      */
-    private static boolean approachVelocity(Vector3d current, Vector3d target, double maxDelta,
-                                            Vector3d deltaOut) {
+    private static double approachVelocity(Vector3d current, Vector3d target, double maxDelta,
+                                           Vector3d deltaOut) {
         new Vector3d(target).sub(current, deltaOut);
         double length = deltaOut.length();
         if (length <= maxDelta) {
-            return true;
+            return 0.0d;
         }
         deltaOut.mul(maxDelta / length);
-        return false;
+        return length - maxDelta;
     }
 
     private static double perTick(double perSecond) {

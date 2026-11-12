@@ -39,8 +39,10 @@ Per physics tick (given the sublevel's rigid-body handle):
 4. **Correction impulse** — restoring term from the tilt error axis (`kp · dt`) plus damping
    term (`-kd · ω_local · dt`), clamped so it never reverses the current angular velocity,
    minus `scale * reactionWheelFeedForwardGain * filteredDisturbance`. The Y component is
-   re-derived to keep the impulse in the plane perpendicular to body-up. Applied with
-   `handle.applyTorqueImpulse(...)` in the local frame; axes are scaled by `kX/kZ`.
+   re-derived to keep the impulse in the plane perpendicular to body-up. Queued through
+   `SimulatedThrustAdapter.applyTorqueImpulse(...)` into Sable's `MAGNETIC_FORCE` group in the
+   local frame (rather than applied directly to the handle), so the warp force-cancellation
+   event can discard it; axes are scaled by `kX/kZ`.
 5. **Stabilized %** — `100 · (1 - min(1, phaseDistance / ω_target))` where phase distance
    combines tilt and angular-velocity error; pushed to every gyro BE on the plot.
 

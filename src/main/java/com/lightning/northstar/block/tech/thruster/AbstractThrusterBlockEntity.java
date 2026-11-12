@@ -4,7 +4,6 @@ import com.lightning.northstar.Northstar;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.particle.ThrusterPlumeParticleData;
 import com.lightning.northstar.util.GoggleUtils;
-import com.lightning.northstar.util.SublevelDimensionalTeleportUtils;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.compat.computercraft.AbstractComputerBehaviour;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -611,9 +610,6 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
     @Override
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle,
                                   final double timeStep) {
-        if (SublevelDimensionalTeleportUtils.isVelocityControlled(subLevel)) {
-            return;
-        }
         if (this.getCurrentThrust() <= 0.0d) {
             return;
         }

@@ -25,6 +25,7 @@ import com.simibubi.create.foundation.item.KineticStats;
 import com.simibubi.create.foundation.item.TooltipHelper;
 import com.simibubi.create.foundation.item.TooltipModifier;
 import com.tterrag.registrate.util.RegistrateDistExecutor;
+import dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent;
 import net.createmod.catnip.lang.FontHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -38,6 +39,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -162,6 +164,13 @@ public class Northstar {
         @SubscribeEvent
         public static void processDeferredWarps(ServerTickEvent.Post event) {
             SublevelDimensionalTeleportUtils.processDeferredWarps();
+        }
+
+        // LOWEST runs after other mods' listeners so their forces are also cleared before Sable
+        // applies the queued totals to the body.
+        @SubscribeEvent(priority = EventPriority.LOWEST)
+        public static void cancelWarpControlledForces(ForgeSablePrePhysicsTickEvent event) {
+            SublevelDimensionalTeleportUtils.onPrePhysicsTick(event);
         }
 
         @SubscribeEvent

@@ -39,6 +39,19 @@ public final class SimulatedThrustAdapter {
         forceGroup.applyAndRecordPointForce(pointLocal, impulseLocal);
     }
 
+    /**
+     * Queues a body-local torque impulse instead of applying it to the handle immediately.
+     *
+     * <p>Routing every Northstar force through Sable's queued force groups means
+     * {@link com.lightning.northstar.util.SublevelDimensionalTeleportUtils#onPrePhysicsTick}
+     * can cancel it during a warp slowdown, freeze or velocity ramp. A direct
+     * {@code RigidBodyHandle} impulse would bypass that choke point.</p>
+     */
+    public static void applyTorqueImpulse(final ServerSubLevel subLevel, final Vector3d torqueLocal) {
+        final QueuedForceGroup forceGroup = subLevel.getOrCreateQueuedForceGroup(getForceGroup("MAGNETIC_FORCE"));
+        forceGroup.getForceTotal().applyTorqueImpulse(torqueLocal);
+    }
+
     public static void applyGroundFriction(final ServerSubLevel subLevel, final Vector3d groundFrictionImpulse) {
         final QueuedForceGroup dragGroup = subLevel.getOrCreateQueuedForceGroup(getForceGroup("DRAG"));
         dragGroup.getForceTotal().applyLinearImpulse(groundFrictionImpulse);

@@ -1,6 +1,7 @@
 package com.lightning.northstar.block.tech.reaction_wheel;
 
 import com.lightning.northstar.Northstar;
+import com.lightning.northstar.block.tech.thruster.SimulatedThrustAdapter;
 import com.lightning.northstar.config.NorthstarConfigs;
 import dev.ryanhcode.sable.api.block.BlockEntitySubLevelActor;
 import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
@@ -122,7 +123,8 @@ public final class ReactionWheelController {
                      this.restoringImpulseLocal.y = -(this.restoringImpulseLocal.x * this.worldUpLocal.x + this.restoringImpulseLocal.z * this.worldUpLocal.z) / wUpY;
                   }
 
-                  handle.applyTorqueImpulse(this.restoringImpulseLocal);
+                  // Queue the torque so a warp-owned body's force groups can be cleared centrally.
+                  SimulatedThrustAdapter.applyTorqueImpulse(this.subLevel, this.restoringImpulseLocal);
                   this.prevAngularVelocityLocal.set(this.angularVelocityLocal);
                   this.lastAppliedImpulseLocal.set(this.restoringImpulseLocal);
                   this.hasObservedTick = true;

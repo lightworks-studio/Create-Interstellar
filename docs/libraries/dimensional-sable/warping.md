@@ -55,8 +55,23 @@ moved while the ship is still flying:
 Both rates live in the `rocket contraption` section of `ServerConfig`
 (`warpDeceleration`, default `20`; `warpAcceleration`, default `10`).
 While a body is slowing, frozen or ramping, `isVelocityControlled(subLevel)` is
-true; thrusters, reaction wheels and the rocket station skip velocity work for
-those bodies.
+true. Northstar does not rely on every actor checking that flag: it subscribes to
+Sable's `ForgeSablePrePhysicsTickEvent`, which fires after actors and Sable's
+lift/drag providers have queued forces but before they are applied. For every
+controlled sub-level the event resets each queued force group, cancelling
+thrust, lift, drag, fans, balloons and any addon that uses Sable's force API in
+one place. Northstar's reaction wheel queues its torque through the
+`MAGNETIC_FORCE` group for the same reason. The rocket station still checks
+`isVelocityControlled` to avoid re-queueing a warp, but it does not modify
+velocity itself.
+
+Forces that bypass force groups cannot be cleared by the event — notably
+Sable's built-in floating-block and reaction-wheel controllers, which apply
+direct `RigidBodyHandle` impulses. The post-tick slowdown/ramp reduces their
+contribution each tick. If a phase makes no measurable progress for five
+seconds, it is force-completed so a warp can never hang with thrust permanently
+suppressed; a phase that is still progressing is never cut short, regardless of
+how low the configured rate is.
 
 When requested, the utility supplies a 180° rotation about an axis perpendicular
 to the rocket's current up direction. Dimensional-Sable applies that rotation
@@ -67,15 +82,17 @@ target, so the ship resumes its original motion in the new dimension.
 
 Immediately before warping, `freezeConnectedSubLevels` saves and zeros each
 connected body's linear and angular velocity. Each frozen body's UUID is kept
-in the utility's frozen set, so `isFrozen(subLevel)` lets physics actors (such
-as the rocket station) skip velocity changes while the hold owns the body.
+in the utility's frozen set, so `isFrozen(subLevel)`/`isVelocityControlled`
+identify it to the central force cancellation and the rocket station's warp
+trigger while the hold owns the body.
 If the warp does not happen, `abortWarp` clears the frozen flags and starts a
 velocity ramp back to the original velocities instead of snapping them back.
 Immediately after reconstruction, each destination body is
 attached to the world using a temporary fixed physics constraint. This keeps
-thrust and gravity from moving the ship during inhabitant recovery. Seat and
-positional recovery continue while the hold is active. Held ships do not
-enqueue another automatic warp.
+thrust and gravity from moving the ship during inhabitant recovery. As a
+fallback for forces that bypass the queued force groups, the hold also zeroes
+every held body's velocity each tick. Seat and positional recovery continue
+while the hold is active. Held ships do not enqueue another automatic warp.
 
 The hold lasts at least 40 ticks. Every captured player must exist in the
 destination and have their saved mount restored, when applicable. Other
@@ -85,7 +102,8 @@ On release the constraints are removed, the bodies are unfrozen, and a velocity
 ramp is started from rest toward the saved rotated velocities. Diagnostics:
 `[ROCKET WARP SLOWING]`, `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
 `[ROCKET HOLD WAITING]`, `[ROCKET HOLD RELEASED]`, `[ROCKET VELOCITY RAMP START]`,
-`[ROCKET VELOCITY RAMP COMPLETE]`, and `[ROCKET WARP FAILED]`.
+`[ROCKET VELOCITY RAMP COMPLETE]`, `[ROCKET WARP SLOWDOWN STALLED]`,
+`[ROCKET VELOCITY RAMP STALLED]`, and `[ROCKET WARP FAILED]`.
 All warp state (pending slowdowns, holds, recovery queues, ramps, and frozen
 ships) is cleared when the server starts and stops.
 

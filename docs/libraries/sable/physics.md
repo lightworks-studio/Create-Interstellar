@@ -49,6 +49,11 @@ Related hook: `sable$tick(ServerSubLevel)` — once per **server game tick**
   the cap. The impulse is scaled by it, so active thrusters accelerate a ship
   toward the configured maximum without overshooting it. A value of `0`
   disables the throttle.
+- Thrusters are not guarded individually during a warp. `Northstar` listens to
+  Sable's `ForgeSablePrePhysicsTickEvent`, and
+  `SublevelDimensionalTeleportUtils.onPrePhysicsTick` resets every queued force
+  group on a controlled sub-level before Sable applies it. Thrust from Northstar
+  or any other mod using the force-group API is therefore discarded centrally.
 
 ### Usage in this mod (rocket station)
 
