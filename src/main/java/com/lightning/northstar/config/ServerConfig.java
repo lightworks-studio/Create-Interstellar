@@ -1,5 +1,6 @@
 package com.lightning.northstar.config;
 
+import com.lightning.northstar.block.tech.oxygen_filler.OxygenFillerActor;
 import net.createmod.catnip.config.ConfigBase;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -32,6 +33,8 @@ public class ServerConfig extends ConfigBase {
     public final ConfigInt contraption_launchCountdownRadius = i(20, 0, "launchCountdownRadius", "From how far away should the launch countdown messages/sound be announced to players");
     public final ConfigFloat contraption_thrusterPower = f(500, 1, "thrusterPower", "The engine's force in Newtons (kg/m/s^2) assuming rocket weight is in kg");
     public final ConfigFloat contraption_maxVelocity = f(100, 0, "maxVelocity", "The maximum speed in blocks/second a rocket sub-level's thrusters will accelerate it to. Thrust tapers off as this speed is approached. Set to 0 to disable the limit.");
+    public final ConfigFloat contraption_warpDeceleration = f(20, 0.1f, "warpDeceleration", "How quickly a rocket sub-level is slowed to a complete stop before a dimensional warp, in blocks/second^2. The same rate is applied to angular motion in radians/second^2.");
+    public final ConfigFloat contraption_warpAcceleration = f(10, 0.1f, "warpAcceleration", "How quickly a rocket sub-level's velocity is restored after a dimensional warp, in blocks/second^2. The same rate is applied to angular motion in radians/second^2.");
     public final ConfigFloat contraption_landingMaxSafeSpeed = f(5, 0, "landingMaxSafeSpeed", "The maximum safe speed in blocks/second the rocket can move at before exploding on landing");
     public final ConfigFloat contraption_rocketExplosionFraction = f(0.005f, 0, 1, "explosionFraction", "The fraction of blocks to explode when a rocket crash lands. Set to zero to disable.");
     public final ConfigInt contraption_rocketExplosionSize = i(8, 1, "explosionSize", "The size of individual explosions when a rocket crash lands.");
@@ -43,6 +46,9 @@ public class ServerConfig extends ConfigBase {
     public final ConfigFloat travelFuelScale = f(10, 0, "travelFuelScale");
 
     public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster properties");
+
+
+    public final ConfigBool thrusterLimitVelocity = b(true, "limitVelocity", "If we should slow down thrust to prevent the ship from going too fast");
 
     public final ConfigFloat thrusterBaseThrust = f(200.0f, 1, 10_000_000, "baseThrust",
             "Base thrust at redstone 15 and full obstruction efficiency for the standard thruster.",

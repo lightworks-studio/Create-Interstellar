@@ -144,6 +144,9 @@ public class ReactionWheelBlockEntity extends KineticBlockEntity implements Bloc
    }
 
    public void sable$physicsTick(ServerSubLevel subLevel, RigidBodyHandle handle, double timeStep) {
+      if (com.lightning.northstar.util.SublevelDimensionalTeleportUtils.isVelocityControlled(subLevel)) {
+         return;
+      }
       double partialPhysicsTick = SubLevelPhysicsSystem.getCurrentlySteppingSystem().getPartialPhysicsTick();
       ReactionWheelController.of(subLevel).tick(partialPhysicsTick, handle, timeStep);
    }

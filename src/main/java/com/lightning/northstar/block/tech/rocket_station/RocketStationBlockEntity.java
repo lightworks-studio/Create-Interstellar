@@ -47,8 +47,8 @@ public class RocketStationBlockEntity extends SmartBlockEntity
 
     @Override
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
-        // The warp/recovery hold owns the body's velocity while frozen; do not modify it.
-        if (SublevelDimensionalTeleportUtils.isFrozen(subLevel)) {
+        // The warp sequence owns the body's velocity while slowing, frozen or ramping.
+        if (SublevelDimensionalTeleportUtils.isVelocityControlled(subLevel)) {
             return;
         }
 
@@ -56,7 +56,8 @@ public class RocketStationBlockEntity extends SmartBlockEntity
                 subLevel.latestLinearVelocity.y > 0.015 //Is the ship moving up?
                 && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()
                 && destination != null
-                && destination.dim() != null) {
+                && destination.dim() != null
+                && !destination.dim().equals(subLevel.getLevel().dimension().location())) {
             lastTeleportTime = 0;
             teleportProperties = new SublevelDimensionalTeleportUtils.TeleportProperties(
                     new RocketDestination(destination.dim(), new BlockPos(0,

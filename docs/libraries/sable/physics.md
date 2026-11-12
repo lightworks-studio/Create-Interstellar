@@ -53,11 +53,14 @@ Related hook: `sable$tick(ServerSubLevel)` — once per **server game tick**
 ### Usage in this mod (rocket station)
 
 - `RocketStationBlockEntity.sable$physicsTick` only handles the atmospheric
-  warp countdown; it no longer clamps the sub-level's linear velocity. Speed
-  limiting is the thruster throttle's responsibility.
-- If the sub-level is frozen by a pending warp or recovery hold
-  (`SublevelDimensionalTeleportUtils.isFrozen`), the station returns early and
-  leaves the velocity untouched so the warp logic owns the body.
+  warp countdown and only starts one when the configured destination differs
+  from the ship's current dimension; it no longer clamps the sub-level's linear
+  velocity. Speed limiting is the thruster throttle's responsibility.
+- If the sub-level's velocity is owned by a warp sequence — slowing, frozen by
+  a recovery hold, or ramping back up
+  (`SublevelDimensionalTeleportUtils.isVelocityControlled`) — the station
+  returns early and leaves the velocity untouched so the warp logic owns the
+  body.
 
 This is the mechanism that feeds thrust into Sable's physics world so
 contraptions accelerate/rotate in flight.

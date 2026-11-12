@@ -932,6 +932,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     @Override
     public void sable$physicsTick(final dev.ryanhcode.sable.sublevel.ServerSubLevel subLevel, final dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle handle, final double timeStep) {
         if (!topologyReady || (isMultiblock() && !isController())) return;
+        if (com.lightning.northstar.util.SublevelDimensionalTeleportUtils.isVelocityControlled(subLevel)) return;
         if (isMultiblock()) {
             float thrust = getCurrentThrust();
             if (thrust <= 0.0f || !Float.isFinite(thrust)) return;
