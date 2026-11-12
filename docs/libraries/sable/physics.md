@@ -43,15 +43,18 @@ Related hook: `sable$tick(ServerSubLevel)` — once per **server game tick**
   `getThrustUnitsPerKn()`).
 - Multiblocks: only the **controller** BE applies the combined impulse at the
   multiblock center nozzle; non-controller parts return early.
+- Before applying an impulse, `AbstractThrusterBlockEntity.getVelocityThrottle`
+  reads the body's linear velocity and returns a `0..1` multiplier: `1` up to
+  90% of `contraption_maxVelocity` (blocks/second), tapering linearly to `0` at
+  the cap. The impulse is scaled by it, so active thrusters accelerate a ship
+  toward the configured maximum without overshooting it. A value of `0`
+  disables the throttle.
 
 ### Usage in this mod (rocket station)
 
-- `RocketStationBlockEntity.sable$physicsTick` clamps the sub-level's linear
-  velocity every physics tick (`maxVelocity` in the `rocket contraption`
-  config group, blocks/second; `0` disables the cap, default `100`).
-- It reads the current velocity from `handle.getLinearVelocity`, and if it
-  exceeds the cap, applies only the overshoot back via
-  `handle.addLinearAndAngularVelocity`, preserving the direction of travel.
+- `RocketStationBlockEntity.sable$physicsTick` only handles the atmospheric
+  warp countdown; it no longer clamps the sub-level's linear velocity. Speed
+  limiting is the thruster throttle's responsibility.
 - If the sub-level is frozen by a pending warp or recovery hold
   (`SublevelDimensionalTeleportUtils.isFrozen`), the station returns early and
   leaves the velocity untouched so the warp logic owns the body.

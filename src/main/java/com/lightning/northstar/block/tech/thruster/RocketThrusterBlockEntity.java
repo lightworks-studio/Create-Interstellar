@@ -935,11 +935,14 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
         if (isMultiblock()) {
             float thrust = getCurrentThrust();
             if (thrust <= 0.0f || !Float.isFinite(thrust)) return;
+            double velocityThrottle = getVelocityThrottle(handle);
+            if (velocityThrottle <= 0.0d) return;
             Vector3d directionLocal = new Vector3d(getThrustDirectionLocal()).normalize();
             Vec3 centerNozzle = getMultiblockCenterNozzlePositionLocal();
             Vector3d applicationPoint = new Vector3d(centerNozzle.x, centerNozzle.y, centerNozzle.z);
             Vector3d impulseLocal = new Vector3d(directionLocal).mul(thrust * timeStep);
             Vector3d adjustedImpulse = new Vector3d(impulseLocal).div(getThrustUnitsPerKn());
+            adjustedImpulse.mul(velocityThrottle);
             SimulatedThrustAdapter.applyImpulseAtPoint(subLevel, applicationPoint, adjustedImpulse);
             return;
         }

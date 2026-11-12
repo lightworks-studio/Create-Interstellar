@@ -18,9 +18,10 @@ Its Minecraft `DimensionArgument` supports loaded vanilla and modded dimensions.
 ## Rocket station
 
 The station checks upward velocity and the configured atmosphere height in its
-Sable physics callback, then queues a warp. Each physics tick it also clamps
-the sub-level's linear velocity to the configured maximum (`maxVelocity`,
-blocks/second) before the teleport check. `ServerTickEvent.Post` processes
+Sable physics callback, then queues a warp. Speed limiting happens on the
+thruster side instead: active thrusters taper their impulse as the ship
+approaches the configured `maxVelocity` (blocks/second), so the station itself
+does not modify the body's velocity. `ServerTickEvent.Post` processes
 the queue after the server's level ticks, avoiding removal of the active
 physics body inside a physics callback. `enqueueWarp` cancels the request and
 logs `[ROCKET WARP CANCELLED]` when the destination dimension equals the

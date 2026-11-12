@@ -31,7 +31,7 @@ public class ServerConfig extends ConfigBase {
     public final ConfigInt contraption_targetingComputersNeeded = i(48, 0, "targetingComputersNeeded", "The amount of targeting computers required to reach maximum efficiency");
     public final ConfigInt contraption_launchCountdownRadius = i(20, 0, "launchCountdownRadius", "From how far away should the launch countdown messages/sound be announced to players");
     public final ConfigFloat contraption_thrusterPower = f(500, 1, "thrusterPower", "The engine's force in Newtons (kg/m/s^2) assuming rocket weight is in kg");
-    public final ConfigFloat contraption_maxVelocity = f(100, 0, "maxVelocity", "The maximum linear velocity of a rocket sub-level in blocks/second. Set to 0 to disable the limit.");
+    public final ConfigFloat contraption_maxVelocity = f(100, 0, "maxVelocity", "The maximum speed in blocks/second a rocket sub-level's thrusters will accelerate it to. Thrust tapers off as this speed is approached. Set to 0 to disable the limit.");
     public final ConfigFloat contraption_landingMaxSafeSpeed = f(5, 0, "landingMaxSafeSpeed", "The maximum safe speed in blocks/second the rocket can move at before exploding on landing");
     public final ConfigFloat contraption_rocketExplosionFraction = f(0.005f, 0, 1, "explosionFraction", "The fraction of blocks to explode when a rocket crash lands. Set to zero to disable.");
     public final ConfigInt contraption_rocketExplosionSize = i(8, 1, "explosionSize", "The size of individual explosions when a rocket crash lands.");

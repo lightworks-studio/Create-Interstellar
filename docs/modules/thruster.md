@@ -117,7 +117,13 @@ Blockstate variants for the single (`W = 1`) model use the vanilla up-authored m
   (`controller + U·W/2 + V·W/2 - FACING·0.45`), travelling toward `-FACING`. Sub-level
   transforms are applied when the thruster is on a Sable sub-level.
 - Physics: `sable$physicsTick` applies a point force along `FACING` with magnitude
-  `currentThrust·Δt` under `ForceGroups.PROPULSION`.
+  `currentThrust·Δt` under `ForceGroups.PROPULSION`. For single blocks and the
+  multiblock controller alike, the impulse is scaled by
+  `getVelocityThrottle(handle)`: it is `1` below 90% of the
+  `contraption_maxVelocity` config value (blocks/second), tapers linearly to
+  `0` at the cap, and is disabled when the config is `0`. This is the only
+  speed limit on a rocket sub-level — `RocketStationBlockEntity` no longer
+  clamps linear velocity.
 - The rocket-only `RocketThrusterMovementBehaviour` emits the contraption plume from the
   exhaust end of a `FACING == UP` thruster column (skipping members whose exhaust neighbour
   is also a thruster).

@@ -26,7 +26,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3d;
 import org.slf4j.Logger;
 
 import java.util.List;
@@ -52,8 +51,6 @@ public class RocketStationBlockEntity extends SmartBlockEntity
         if (SublevelDimensionalTeleportUtils.isFrozen(subLevel)) {
             return;
         }
-
-        limitLinearVelocity(handle);
 
         if (lastTeleportTime > 20*10 && //tick cooldown
                 subLevel.latestLinearVelocity.y > 0.015 //Is the ship moving up?
@@ -87,25 +84,6 @@ public class RocketStationBlockEntity extends SmartBlockEntity
 //        }
 
     }
-
-    private static void limitLinearVelocity(final RigidBodyHandle handle) {
-        final float maxVelocity = NorthstarConfigs.server().contraption_maxVelocity.getF();
-        if (maxVelocity <= 0) {
-            return;
-        }
-
-        final Vector3d velocity = handle.getLinearVelocity(new Vector3d());
-        final double speed = velocity.length();
-        if (speed <= maxVelocity) {
-            return;
-        }
-
-        // Velocity is in blocks/second (m/s). Remove the overshoot instead of
-        // overwriting the velocity so the existing motion direction is kept.
-        final Vector3d correction = velocity.mul(maxVelocity / speed, new Vector3d()).sub(velocity);
-        handle.addLinearAndAngularVelocity(correction, new Vector3d());
-    }
-
 
     public RocketStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);

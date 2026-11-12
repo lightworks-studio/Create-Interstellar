@@ -71,6 +71,13 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
 
     protected static final float LOWEST_POWER_THRESHOLD = 5.0f / 15.0f;
 
+    /**
+     * Thrust begins tapering at this fraction of the configured max contraption
+     * velocity, reaching zero at the cap, so ships approach it smoothly instead
+     * of overshooting.
+     */
+    protected static final double VELOCITY_THROTTLE_START_RATIO = 0.9d;
+
     protected ControlMode controlMode = ControlMode.NORMAL;
     protected int redstoneInput = 0;
     protected float digitalInput = 0.0f;
@@ -577,10 +584,35 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
         return isPowered() && isWorking();
     }
 
+    /**
+     * Returns a 0..1 multiplier for this physics tick's thrust. It stays at 1
+     * below {@link #VELOCITY_THROTTLE_START_RATIO} of the configured max
+     * contraption velocity, then tapers to 0 at the cap so an active thruster
+     * never pushes the sub-level past it.
+     */
+    protected double getVelocityThrottle(RigidBodyHandle handle) {
+        final float maxVelocity = NorthstarConfigs.server().contraption_maxVelocity.getF();
+        if (maxVelocity <= 0) {
+            return 1.0d;
+        }
+
+        final double speed = handle.getLinearVelocity(new Vector3d()).length();
+        final double throttleStart = maxVelocity * VELOCITY_THROTTLE_START_RATIO;
+        if (speed <= throttleStart) {
+            return 1.0d;
+        }
+        return Math.clamp(0.0d, 1.0d, (maxVelocity - speed) / (maxVelocity - throttleStart));
+    }
+
     @Override
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle,
                                   final double timeStep) {
         if (this.getCurrentThrust() <= 0.0d) {
+            return;
+        }
+
+        final double velocityThrottle = getVelocityThrottle(handle);
+        if (velocityThrottle <= 0.0d) {
             return;
         }
 
@@ -593,6 +625,7 @@ public abstract class AbstractThrusterBlockEntity extends SmartBlockEntity
         }
 
         Vector3d adjustedImpulse = new Vector3d(sample.impulseLocal()).div(getThrustUnitsPerKn());
+        adjustedImpulse.mul(velocityThrottle);
         SimulatedThrustAdapter.applyImpulseAtPoint(subLevel, sample.pointLocal(), adjustedImpulse);
     }
 
