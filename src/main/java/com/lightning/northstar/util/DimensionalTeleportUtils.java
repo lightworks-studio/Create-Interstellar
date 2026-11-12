@@ -11,13 +11,29 @@ import net.minecraft.world.level.Level;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import static com.lightning.northstar.Northstar.LOGGER;
 
 public class DimensionalTeleportUtils {
 
+    private static final Queue<TeleportProperties> DEFERRED_WARPS = new ConcurrentLinkedQueue<>();
+
     public record TeleportProperties(RocketDestination destination,
                                      ServerSubLevel subLevel, RigidBodyHandle handle, boolean flipOrientation) {
 
+    }
+
+    public static void enqueueWarp(TeleportProperties properties) {
+        DEFERRED_WARPS.add(properties);
+    }
+
+    public static void processDeferredWarps() {
+        TeleportProperties properties;
+        while ((properties = DEFERRED_WARPS.poll()) != null) {
+            warpSublevelToDestination(properties);
+        }
     }
 
 

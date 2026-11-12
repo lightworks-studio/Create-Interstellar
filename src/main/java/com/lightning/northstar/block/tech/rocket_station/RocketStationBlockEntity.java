@@ -73,13 +73,7 @@ public class RocketStationBlockEntity extends SmartBlockEntity
 
             teleportQueued = true;
             lastTeleportTime++;
-            level.getServer().execute(() -> {
-                try {
-                    DimensionalTeleportUtils.warpSublevelToDestination(properties);
-                } finally {
-                    teleportQueued = false;
-                }
-            });
+            DimensionalTeleportUtils.enqueueWarp(properties);
         }
 
     }

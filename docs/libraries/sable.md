@@ -81,6 +81,9 @@ configured in the station:
   warper inline from `sable$physicsTick`. Inline warping removes the current
   Rapier body while Sable is still processing the physics callback, leaving a
   stale `RigidBodyHandle` for the remainder of that physics tick.
+- Deferred rocket warps are drained from `ServerTickEvent.Post`, after all
+  server-level physics containers have completed their tick. A generic server
+  executor queue is not used as the physics-safe boundary.
 - The rocket path uses the explicit-orientation overload even when no
   orientation change is needed, matching the working `/northstar warp`
   command. The convenience overload is not used.
