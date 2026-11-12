@@ -43,29 +43,44 @@ public class RocketStationBlockEntity extends SmartBlockEntity
     public RocketDestination destination;
     public long lastTeleportTime;
     DimensionalTeleportUtils.TeleportProperties teleportProperties = null;
+    private boolean teleportQueued;
 
 
     @Override
     public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
-        if (lastTeleportTime > 100 && //tick cooldown
-                subLevel.latestLinearVelocity.y > 0.015
-                && subLevel.logicalPose().position().y > 200) {//NorthstarConfigs.server().atmosphereTeleportHeight.get()
-            lastTeleportTime = 0;
-            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(
-                    new RocketDestination(
-                            destination.dim(),
-                            new BlockPos(0, 100, 0),
-                            null),
-                    subLevel, handle, true);
-            DimensionalTeleportUtils.warpSublevelToDestination(teleportProperties);
-        }
-        lastTeleportTime++;
-
-//        if (lastTeleportTime == 0 && destination != null) {
-//            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(destination, subLevel, handle, false);
+//        if (lastTeleportTime > 100 && //tick cooldown
+//                subLevel.latestLinearVelocity.y > 0.015
+//                && subLevel.logicalPose().position().y > 200) {//NorthstarConfigs.server().atmosphereTeleportHeight.get()
+//            lastTeleportTime = 0;
+//            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(
+//                    new RocketDestination(
+//                            destination.dim(),
+//                            new BlockPos(0, 100, 0),
+//                            null),
+//                    subLevel, handle, true);
 //            DimensionalTeleportUtils.warpSublevelToDestination(teleportProperties);
-//            lastTeleportTime++;
 //        }
+//        lastTeleportTime++;
+
+        if (lastTeleportTime == 0 && !teleportQueued && destination != null) {
+            // The warper removes/recreates the Rapier body. Defer it until this
+            // physics callback has returned so Sable does not reuse a removed handle.
+            System.out.println(destination.dim());
+            final RocketDestination warpDestination = new RocketDestination(
+                    destination.dim(), new BlockPos(0, 100, 0), null);
+            final DimensionalTeleportUtils.TeleportProperties properties =
+                    new DimensionalTeleportUtils.TeleportProperties(warpDestination, subLevel, handle, false);
+
+            teleportQueued = true;
+            lastTeleportTime++;
+            level.getServer().execute(() -> {
+                try {
+                    DimensionalTeleportUtils.warpSublevelToDestination(properties);
+                } finally {
+                    teleportQueued = false;
+                }
+            });
+        }
 
     }
 

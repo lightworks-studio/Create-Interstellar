@@ -11,17 +11,16 @@ import dev.ryanhcode.sable.command.argument.SubLevelSelector;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
 import java.util.Collection;
 
 /**
- * /northstar warp <sublevel> <overworld|nether|end> <x> <y> <z>
+ * /northstar warp <sublevel> <dimension> <x> <y> <z>
  */
 public class WarpSubLevelCommand {
 
@@ -31,29 +30,22 @@ public class WarpSubLevelCommand {
 
         LiteralArgumentBuilder<CommandSourceStack> warp = Commands.literal("warp")
                 .then(Commands.argument("sublevel", new SubLevelArgumentType(false, false))
-                        // Overworld choice
-                        .then(Commands.literal("overworld")
-                                .then(posArguments(Level.OVERWORLD)))
-                        // Nether choice
-                        .then(Commands.literal("nether")
-                                .then(posArguments(Level.NETHER)))
-                        // End choice
-                        .then(Commands.literal("end")
-                                .then(posArguments(Level.END)))
+                        .then(Commands.argument("dimension", DimensionArgument.dimension())
+                                .then(posArguments()))
                 );
 
         root.then(warp);
         dispatcher.register(root);
     }
 
-    private static RequiredArgumentBuilder<CommandSourceStack, Double> posArguments(ResourceKey<Level> dimKey) {
+    private static RequiredArgumentBuilder<CommandSourceStack, Double> posArguments() {
         return Commands.argument("posX", DoubleArgumentType.doubleArg(-1.0E6, 1.0E6))
                 .then(Commands.argument("posY", DoubleArgumentType.doubleArg(-2.048E7, 2.048E7))
                         .then(Commands.argument("posZ", DoubleArgumentType.doubleArg(-1.0E6, 1.0E6))
-                                .executes(ctx -> execute(ctx, dimKey))));
+                                .executes(WarpSubLevelCommand::execute)));
     }
 
-    private static int execute(CommandContext<CommandSourceStack> ctx, ResourceKey<Level> dimKey) {
+    private static int execute(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
 
         SubLevelSelector selector;
@@ -79,8 +71,10 @@ public class WarpSubLevelCommand {
 
         ServerSubLevel subLevel = subLevels.iterator().next();
 
-        ServerLevel destLevel = source.getServer().getLevel(dimKey);
-        if (destLevel == null) {
+        ServerLevel destLevel;
+        try {
+            destLevel = DimensionArgument.getDimension(ctx, "dimension");
+        } catch (Exception e) {
             source.sendFailure(Component.literal("Target dimension level not found on server!"));
             return 0;
         }

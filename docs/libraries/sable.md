@@ -77,10 +77,20 @@ configured in the station:
   180° rotation (axis perpendicular to the current world-facing direction)
   with the current orientation, so a ship that entered nose-up emerges
   nose-down.
+- The rocket station queues the warp on the server instead of calling the
+  warper inline from `sable$physicsTick`. Inline warping removes the current
+  Rapier body while Sable is still processing the physics callback, leaving a
+  stale `RigidBodyHandle` for the remainder of that physics tick.
+- The rocket path uses the explicit-orientation overload even when no
+  orientation change is needed, matching the working `/northstar warp`
+  command. The convenience overload is not used.
 - After warping, linear and angular velocity are zeroed via
   `RigidBodyHandle.addLinearAndAngularVelocity(negated)` — otherwise the
   preserved upward velocity would immediately re-trigger the warp in the new
   dimension.
 
-Reference implementation for the same API: `/northstar warp` command
-(`WarpSubLevelCommand`).
+Reference implementation for the same API: `/northstar warp <sublevel>
+<dimension> <x> <y> <z>` (`WarpSubLevelCommand`). The command uses
+Minecraft's `DimensionArgument`, so its dimension argument is resolved from
+the server's loaded dimension registry and supports modded dimensions as well
+as vanilla dimensions.

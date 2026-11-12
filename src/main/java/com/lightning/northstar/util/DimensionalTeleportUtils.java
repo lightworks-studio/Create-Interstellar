@@ -61,7 +61,11 @@ public class DimensionalTeleportUtils {
 
             final int warped = SubLevelWarper.warpConnectedSubLevels(properties.subLevel, destLevel, destPos, flippedOrientation);
         } else {
-            final int warped = SubLevelWarper.warpConnectedSubLevels(properties.subLevel, destLevel, destPos);
+            // Use the explicit-orientation overload, matching /northstar warp.
+            // The convenience overload follows a different Dimensional-Sable
+            // path and can leave the destination body's Rapier handle removed.
+            final int warped = SubLevelWarper.warpConnectedSubLevels(
+                    properties.subLevel, destLevel, destPos, new Quaterniond());
         }
 
         // Zero the velocity so the ship does not immediately re-trigger the warp in the new dimension
