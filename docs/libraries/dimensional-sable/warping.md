@@ -27,7 +27,25 @@ block position, or retains the ship's current position when none is supplied.
 
 When requested, the utility supplies a 180° rotation about an axis perpendicular
 to the rocket's current up direction. Dimensional-Sable applies that rotation
-to orientation and velocity; Northstar does not currently zero velocity.
+to orientation and velocity. Northstar temporarily stops the connected ship
+before transfer and restores its saved, rotated velocities after recovery.
+
+## Recovery hold
+
+Immediately before warping, Northstar saves and zeros each connected body's
+linear and angular velocity. Immediately after reconstruction, each destination
+body is attached to the world using a temporary fixed physics constraint.
+This keeps thrust and gravity from moving the ship during inhabitant recovery.
+Seat and positional recovery continue while the hold is active. Held ships do
+not enqueue another automatic warp.
+
+The hold lasts at least 40 ticks. Every captured player must exist in the
+destination and have their saved mount restored, when applicable. Other
+inhabitants are given up to 100 ticks; they cannot hold the ship indefinitely.
+An unresolved player keeps the ship held, with status printed every 20 ticks.
+On release the constraints are removed and the saved rotated velocities are
+restored. Diagnostics: `[ROCKET HOLD BEFORE WARP]`, `[ROCKET HOLD AFTER WARP]`,
+`[ROCKET HOLD WAITING]`, and `[ROCKET HOLD RELEASED]`.
 
 ## Inhabitant transfer and limitations
 
@@ -39,6 +57,10 @@ before restoring the passenger. Old seat UUIDs are not required for this path.
 Seat entities are excluded from world-space positional recovery; moving them
 out of the plot would cause their seat-block validation to fail. Diagnostics
 use `[ROCKET SEAT CAPTURE]` and `[ROCKET SEAT RESOLVED]`.
+Capture falls back to the seat's block position when entity containment is
+unavailable. `[ROCKET SEAT CAPTURE FAILED]` reports missing source containment;
+`[ROCKET SEAT LOOKUP FAILED]` distinguishes a missing saved anchor, missing
+destination sub-level, and a destination block that is not a seat.
 
 Northstar excludes `create:super_glue` and `simulated:honey_glue` from its
 inhabitant manifest and recovery. These structural entities must remain under
