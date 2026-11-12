@@ -48,7 +48,9 @@ public class ServerConfig extends ConfigBase {
     public final ConfigGroup thruster = group(1, "thruster", "Rocket thruster properties");
 
 
-    public final ConfigBool thrusterLimitVelocity = b(true, "limitVelocity", "If we should slow down thrust to prevent the ship from going too fast");
+    //TODO: Fix this or determine what to do here
+    public final ConfigBool thrusterLimitVelocity = b(false, "limitVelocity",
+            "If we should slow down thrust to prevent the ship from going too fast");
 
     public final ConfigFloat thrusterBaseThrust = f(200.0f, 1, 10_000_000, "baseThrust",
             "Base thrust at redstone 15 and full obstruction efficiency for the standard thruster.",
