@@ -110,11 +110,17 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     }
 
     private void tickConnectivity() {
-        if (disassemblyCooldown > 0) {
+        if (disassemblyCooldown > 0) {//If the structure is unverified, we tick down (this is extremely lightweight as we simply check if its > 0 which its always unless  invalidated)
             disassemblyCooldown--;
             setTopologyReady(false);
             return;
         }
+        //If the connectivity interval is up or the thruster has been marked as dirty, continue
+        /*
+        * TODO: We could mark it assembled and stop checking until something changes. The difficulty is making sure
+        *  every relevant change invalidates that mark: a member being removed or rotated, a chunk unloading,
+        *  schematic placement, or Sable moving the blocks.
+        * */
         if (++connectivityTicks < CONNECTIVITY_INTERVAL && !updateConnectivity) return;
         connectivityTicks = 0;
         updateConnectivity = false;
