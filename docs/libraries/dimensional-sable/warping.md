@@ -31,6 +31,20 @@ to orientation and velocity; Northstar does not currently zero velocity.
 
 ## Inhabitant transfer and limitations
 
+Create block seats are rebound by location after reconstruction: capture the
+containing sub-level UUID and seat entity position relative to its plot center.
+In the destination, resolve the rebuilt sub-level, add that offset to its new
+plot center, verify a `SeatBlock`, and reuse the seat entity there or create one
+before restoring the passenger. Old seat UUIDs are not required for this path.
+Seat entities are excluded from world-space positional recovery; moving them
+out of the plot would cause their seat-block validation to fail. Diagnostics
+use `[ROCKET SEAT CAPTURE]` and `[ROCKET SEAT RESOLVED]`.
+
+Northstar excludes `create:super_glue` and `simulated:honey_glue` from its
+inhabitant manifest and recovery. These structural entities must remain under
+the library's plot-transfer handling rather than being repositioned in world
+space by Northstar's recovery loop.
+
 `SubLevelWarper` first reconstructs every connected sub-level in the destination.
 For each source sub-level it selects entities intersecting its world bounding
 box inflated by one block, excludes passengers from the initial selection, then
@@ -52,3 +66,27 @@ unloaded, removed, or non-transferable entities and rejected mounts cannot be
 guaranteed. Failures are logged. Rocket contraption seats use Create's seat
 mapping and synchronize virtual-seat offsets; other vehicle types use normal
 `startRiding` and may require additional mod-specific metadata.
+
+After a successful warp, saved mounts are checked for 40 server ticks. Missing
+mounts are retried, and seated players receive the vehicle passenger packet
+again while destination tracking initializes. Sneaking or riding a different
+vehicle cancels the check. The final verification logs whether the passenger
+and vehicle exist in the destination and whether the mount is restored. This
+does not pause ship motion during loading.
+
+All captured inhabitants, including entities already transferred by
+Dimensional-Sable, receive 40 ticks of UUID-based recovery checks across loaded
+server dimensions. Unmounted entities in the wrong dimension or more than eight
+blocks from their saved ship-local position are teleported to that position on
+the destination ship's current pose. Mounted entities use seat restoration.
+Sneaking cancels positional recovery. The manifest cannot recover an entity
+that was never captured, or recreate a removed entity.
+
+Console diagnostics use these prefixes: `[ROCKET BEFORE SUMMARY]` and
+`[ROCKET BEFORE]` list the capture manifest; `[ROCKET PLAYER CAPTURE AUDIT]`
+includes both selected and excluded source players; `[ROCKET AFTER
+DIMENSIONAL-SABLE]` reports source/destination UUID lookups for every captured
+entity; `[ROCKET AFTER RECOVERY]` reports initial fallback results; `[ROCKET
+RECOVERY CHECK]`, `[ROCKET RECOVER ENTITY]`, and `[ROCKET FINAL ENTITY]` report
+the subsequent checks, corrections, and final state. Entries include names,
+UUIDs, entity types, positions, dimensions, and current vehicles.
