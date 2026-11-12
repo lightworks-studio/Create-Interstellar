@@ -48,9 +48,16 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     protected double lastOxidizerConsumedMbPerTick = 0.0d;
     protected double fuelDrainAccumulator = 0.0d;
     protected double oxidizerDrainAccumulator = 0.0d;
-    // Ticks to skip multiblock-validity checks after a sublevel move to tolerate transient invalidity.
-    private static final int DISASSEMBLY_GRACE_TICKS = 5;
-    private int disassemblyCooldown = 0;
+    // Runtime-only: serialized topology is a hint until the current world validates it.
+    private static final int DISASSEMBLY_GRACE_TICKS = 10;
+    private static final int CONNECTIVITY_INTERVAL = 20;
+    private int disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
+    private int connectivityTicks;
+    private int invalidTopologyChecks;
+    private volatile boolean topologyReady;
+
+    private enum CubeStatus { VALID, INVALID, UNAVAILABLE }
+
 
     public RocketThrusterBlockEntity(BlockEntityType<?> typeIn, BlockPos pos, BlockState state) {
         super(typeIn, pos, state);
@@ -80,40 +87,175 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Nullable
     public RocketThrusterBlockEntity getControllerBE() {
-        if (isController() || !hasLevel()) return this;
-        net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, controllerPos);
-        return be instanceof RocketThrusterBlockEntity t ? t : null;
+        if (isController()) return this;
+        if (level == null || width < 2 || width > MAX_WIDTH
+                || !containsCell(controllerPos, width, worldPosition)
+                || !isCellLoaded(controllerPos)) return null;
+        net.minecraft.world.level.block.entity.BlockEntity be =
+                SimulatedThrustAdapter.getBlockEntitySafe(level, controllerPos);
+        if (!(be instanceof RocketThrusterBlockEntity ctrl)
+                || ctrl.isRemoved() || !ctrl.isController() || ctrl.width != width
+                || ctrl.getClass() != getClass() || ctrl.getFacing() != getFacing()
+                || ctrl.getBlockState().getBlock() != getBlockState().getBlock()
+                || !sameSubLevel(ctrl.worldPosition)) return null;
+        return ctrl;
     }
 
     @Override
     public void tick() {
+        if (level == null || isRemoved()) return;
+        // Resolve ownership before the base tick can consume fuel or produce thrust.
+        if (!level.isClientSide) tickConnectivity();
         super.tick();
-        if (level == null || level.isClientSide) return;
-        if (!supportsMultiblock()) {
-            if (isMultiblock()) {
-                width = 1;
-                controllerPos = null;
-            }
+    }
+
+    private void tickConnectivity() {
+        if (disassemblyCooldown > 0) {
+            disassemblyCooldown--;
+            setTopologyReady(false);
             return;
         }
-        if (isController() && isMultiblock()) {
-            if (disassemblyCooldown > 0) {
-                disassemblyCooldown--;
-            } else if (!SimulatedThrustAdapter.isOutsideWorldBuildHeight(level, worldPosition)) {
-                // Fix: Skip multiblock validation when outside build height to prevent disassembly.
-                Direction facing = getFacing();
-                if (!isValidFormedCube(worldPosition, width, facing)) {
-                    disassembleMulti();
-                    return;
-                }
+        if (++connectivityTicks < CONNECTIVITY_INTERVAL && !updateConnectivity) return;
+        connectivityTicks = 0;
+        updateConnectivity = false;
+        if (!supportsMultiblock()) {
+            if (width != 1 || controllerPos != null) resetMultiblockForRebuild();
+            setTopologyReady(true);
+            reconcileMultiblockState();
+            return;
+        }
+
+        BlockPos origin = isController() ? worldPosition : controllerPos;
+        if (width > 1 || controllerPos != null) {
+            CubeStatus status = inspectFormedCube(origin, width, getFacing());
+            if (status == CubeStatus.UNAVAILABLE) {
+                setTopologyReady(false);
+                stopThrustForRebuild();
+                return; // Never turn an unloaded chunk into a missing member.
+            }
+            if (status == CubeStatus.INVALID) {
+                setTopologyReady(false);
+                stopThrustForRebuild();
+                // Require repeated observations after settling; placement may span ticks.
+                if (++invalidTopologyChecks < 2) return;
+                if (isController() && isMultiblock()) disassembleMulti();
+                else resetMultiblockForRebuild();
+                return;
+            } else {
+                invalidTopologyChecks = 0;
+                setTopologyReady(true);
+                reconcileMultiblockState();
+                // A complete 2-cube may grow into a complete 3-cube.
+                if (isController() && width < MAX_WIDTH) tryAssemble();
+                return;
             }
         }
-        if (updateConnectivity) {
-            updateConnectivity = false;
-            if (isController() && !isMultiblock()) {
-                tryAssemble();
+        invalidTopologyChecks = 0;
+        setTopologyReady(true);
+        reconcileMultiblockState();
+        tryAssemble(); // Kept periodic even after failure; no neighbour hook is required.
+    }
+
+    private void setTopologyReady(boolean ready) {
+        if (topologyReady == ready) return;
+        topologyReady = ready;
+        if (level != null && !level.isClientSide) level.invalidateCapabilities(worldPosition);
+    }
+
+    private boolean isCellLoaded(BlockPos pos) {
+        return level != null && level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
+    private boolean sameSubLevel(BlockPos pos) {
+        return Sable.HELPER.getContaining(level, pos)
+                == Sable.HELPER.getContaining(level, worldPosition);
+    }
+
+    private static boolean containsCell(BlockPos origin, int size, BlockPos pos) {
+        return origin != null && pos.getX() >= origin.getX() && pos.getX() < origin.getX() + size
+                && pos.getY() >= origin.getY() && pos.getY() < origin.getY() + size
+                && pos.getZ() >= origin.getZ() && pos.getZ() < origin.getZ() + size;
+    }
+
+    private CubeStatus inspectFormedCube(BlockPos origin, int size, Direction facing) {
+        if (level == null || origin == null || size < 2 || size > MAX_WIDTH
+                || !containsCell(origin, size, worldPosition)) return CubeStatus.INVALID;
+        // Check availability first, independently of iteration order.
+        for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
+            if (!isCellLoaded(origin.offset(x, y, z))) return CubeStatus.UNAVAILABLE;
+        }
+        boolean invalid = false;
+        for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
+            BlockPos pos = origin.offset(x, y, z);
+            BlockState state = SimulatedThrustAdapter.getBlockStateSafe(level, pos);
+            if (!sameSubLevel(pos) || state.getBlock() != getBlockState().getBlock()
+                    || !state.hasProperty(AbstractThrusterBlock.FACING)
+                    || state.getValue(AbstractThrusterBlock.FACING) != facing) {
+                invalid = true;
+                continue;
+            }
+            net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
+            if (be == null) return CubeStatus.UNAVAILABLE;
+            if (!(be instanceof RocketThrusterBlockEntity t) || t.isRemoved()
+                    || t.getClass() != getClass() || !t.supportsMultiblock() || t.width != size
+                    || (pos.equals(origin) ? !t.isController() : !origin.equals(t.controllerPos))) {
+                invalid = true;
             }
         }
+        return invalid ? CubeStatus.INVALID : CubeStatus.VALID;
+    }
+
+    private void stopThrustForRebuild() {
+        boolean changed = thrusterData.getThrust() != 0 || lastConsumedMbPerTick != 0
+                || lastOxidizerConsumedMbPerTick != 0;
+        thrusterData.setThrust(0);
+        lastConsumedMbPerTick = 0;
+        lastOxidizerConsumedMbPerTick = 0;
+        isThrustDirty = true;
+        if (changed) {
+            setChanged();
+            notifyUpdate();
+        }
+    }
+
+    private void reconcileMultiblockState() {
+        if (level == null || level.isClientSide || !isCellLoaded(worldPosition)) return;
+        BlockState state = SimulatedThrustAdapter.getBlockStateSafe(level, worldPosition);
+        // Do not restore a block which is being removed, or change another block's state.
+        if (state.getBlock() != getBlockState().getBlock() || !state.hasProperty(ThrusterBlock.MULTIBLOCK)) return;
+        if (state.getValue(ThrusterBlock.MULTIBLOCK) != isMultiblock()) {
+            level.setBlock(worldPosition, state.setValue(ThrusterBlock.MULTIBLOCK, isMultiblock()), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    private void resizeTanksPreservingContents() {
+        int cap = getBaseTankCapacityMb() * (isController() ? width * width * width : 1);
+        // An orphan can own more than one block's capacity. Keep it until it is drained
+        // or a future compatible assembly can accept it; never trim recovery contents.
+        if (tank != null) tank.getPrimaryHandler().setCapacity(Math.max(cap, tank.getPrimaryHandler().getFluidAmount()));
+        if (oxidizerTank != null) oxidizerTank.getPrimaryHandler().setCapacity(Math.max(cap, oxidizerTank.getPrimaryHandler().getFluidAmount()));
+    }
+
+    private void topologyChanged() {
+        boundingBox = null;
+        multiblockBoundingBox = null;
+        resizeTanksPreservingContents();
+        stopThrustForRebuild();
+        if (level != null && !level.isClientSide) {
+            reconcileMultiblockState();
+            level.invalidateCapabilities(worldPosition);
+            setChanged();
+            notifyUpdate();
+        }
+    }
+
+    private void resetMultiblockForRebuild() {
+        width = 1;
+        controllerPos = null;
+        updateConnectivity = true;
+        invalidTopologyChecks = 0;
+        topologyReady = false;
+        topologyChanged();
     }
 
     protected void tryAssemble() {
@@ -141,151 +283,123 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     }
 
     protected boolean isValidCube(BlockPos origin, int size, Direction facing) {
-        if (level == null) return false;
-        BlockState originState = SimulatedThrustAdapter.getBlockStateSafe(level, origin);
-        Block expectedBlock = originState.getBlock();
-        Class<?> expectedType = null;
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    BlockState state = SimulatedThrustAdapter.getBlockStateSafe(level, pos);
-                    if (!state.is(expectedBlock)) return false;
-                    if (!state.hasProperty(AbstractThrusterBlock.FACING)) return false;
-                    if (state.getValue(AbstractThrusterBlock.FACING) != facing) return false;
-                    net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
-                    if (!(be instanceof RocketThrusterBlockEntity t)) return false;
-                    if (expectedType == null) {
-                        expectedType = t.getClass();
-                    } else if (t.getClass() != expectedType) {
-                        // Prevent mixed thruster families (e.g. normal + ion) from assembling.
-                        return false;
-                    }
-                    if (!t.supportsMultiblock()) return false;
-                    if (t.isMultiblock() && t.width >= size) return false;
-                }
-            }
+        if (level == null || size < 2 || size > MAX_WIDTH) return false;
+        for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
+            BlockPos pos = origin.offset(x, y, z);
+            if (!isCellLoaded(pos) || !sameSubLevel(pos)) return false;
+            BlockState state = SimulatedThrustAdapter.getBlockStateSafe(level, pos);
+            if (state.getBlock() != getBlockState().getBlock()
+                    || !state.hasProperty(AbstractThrusterBlock.FACING)
+                    || state.getValue(AbstractThrusterBlock.FACING) != facing) return false;
+            net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
+            if (!(be instanceof RocketThrusterBlockEntity t) || t.isRemoved()
+                    || t.getClass() != getClass() || !t.supportsMultiblock()
+                    || t.disassemblyCooldown > 0 || !t.topologyReady
+                    || t.tank == null || t.oxidizerTank == null) return false;
+            if (t.isMultiblock()) {
+                RocketThrusterBlockEntity ctrl = t.getControllerBE();
+                // Upgrade only if the entire old assembly is enclosed, so no member
+                // outside this cube retains a link to a repurposed controller.
+                if (ctrl == null || t.width >= size
+                        || !containsCell(origin, size, ctrl.worldPosition)
+                        || !containsCell(origin, size, ctrl.worldPosition.offset(t.width - 1, t.width - 1, t.width - 1))
+                        || !ctrl.isValidFormedCube(ctrl.worldPosition, ctrl.width, facing)) return false;
+            } else if (!t.isController()) return false;
         }
         return true;
     }
 
     protected void formMulti(BlockPos origin, int size, Direction facing) {
-        if (level == null) return;
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, origin.offset(x, y, z));
-                    if (be instanceof RocketThrusterBlockEntity t && t.isMultiblock()) {
-                        RocketThrusterBlockEntity ctrl = t.getControllerBE();
-                        if (ctrl != null) ctrl.disassembleMulti();
-                    }
-                }
-            }
-        }
-
+        if (level == null || level.isClientSide || !isValidCube(origin, size, facing)) return;
         List<RocketThrusterBlockEntity> members = new ArrayList<>(size * size * size);
-        RocketThrusterBlockEntity controller = null;
         FluidStack totalFuel = FluidStack.EMPTY;
         FluidStack totalOxidizer = FluidStack.EMPTY;
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
-                    if (!(be instanceof RocketThrusterBlockEntity t)) return;
-                    members.add(t);
-                    if (pos.equals(origin)) controller = t;
-                    if (t.tank != null) {
-                        totalFuel = mergeFluid(totalFuel, t.tank.getPrimaryHandler().getFluid());
-                        t.tank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
-                    }
-                    if (t.oxidizerTank != null) {
-                        totalOxidizer = mergeFluid(totalOxidizer, t.oxidizerTank.getPrimaryHandler().getFluid());
-                        t.oxidizerTank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
-                    }
-                }
-            }
-        }
-        if (controller == null) return;
-
         int newCap = getBaseTankCapacityMb() * size * size * size;
-        if (controller.tank != null) {
-            controller.tank.getPrimaryHandler().setCapacity(newCap);
-            controller.tank.getPrimaryHandler().setFluid(trimToCapacity(totalFuel, newCap));
+        // Preflight every reference, fluid component and capacity before changing anything.
+        for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
+            net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, origin.offset(x, y, z));
+            if (!(be instanceof RocketThrusterBlockEntity t) || t.tank == null || t.oxidizerTank == null) return;
+            FluidStack fuel = t.tank.getPrimaryHandler().getFluid();
+            FluidStack ox = t.oxidizerTank.getPrimaryHandler().getFluid();
+            if (!canPool(totalFuel, fuel, newCap) || !canPool(totalOxidizer, ox, newCap)) return;
+            totalFuel = mergeFluid(totalFuel, fuel);
+            totalOxidizer = mergeFluid(totalOxidizer, ox);
+            members.add(t);
         }
-        if (controller.oxidizerTank != null) {
-            controller.oxidizerTank.getPrimaryHandler().setCapacity(newCap);
-            controller.oxidizerTank.getPrimaryHandler().setFluid(trimToCapacity(totalOxidizer, newCap));
-        }
-
+        RocketThrusterBlockEntity controller = members.get(0); // Origin is always first.
+        double fuelRemainder = 0;
+        double oxidizerRemainder = 0;
         for (RocketThrusterBlockEntity t : members) {
-            t.controllerPos = (t == controller) ? null : origin;
+            t.setTopologyReady(false);
+            t.stopThrustForRebuild();
+        }
+        for (RocketThrusterBlockEntity t : members) {
+            fuelRemainder += t.fuelDrainAccumulator;
+            oxidizerRemainder += t.oxidizerDrainAccumulator;
+            t.tank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
+            t.oxidizerTank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
+            t.fuelDrainAccumulator = 0;
+            t.oxidizerDrainAccumulator = 0;
+            t.controllerPos = t == controller ? null : origin.immutable();
             t.width = size;
-            t.isThrustDirty = true;
-            BlockPos cellPos = t.getBlockPos();
-            BlockState liveState = SimulatedThrustAdapter.getBlockStateSafe(level, cellPos);
-            if (liveState.hasProperty(ThrusterBlock.MULTIBLOCK)
-                    && !liveState.getValue(ThrusterBlock.MULTIBLOCK)) {
-                level.setBlock(cellPos, liveState.setValue(ThrusterBlock.MULTIBLOCK, true), Block.UPDATE_CLIENTS);
-            }
-            t.setChanged();
-            t.notifyUpdate();
+            t.invalidTopologyChecks = 0;
+            t.updateConnectivity = false;
+        }
+        controller.tank.getPrimaryHandler().setCapacity(newCap);
+        controller.oxidizerTank.getPrimaryHandler().setCapacity(newCap);
+        controller.tank.getPrimaryHandler().setFluid(totalFuel);
+        controller.oxidizerTank.getPrimaryHandler().setFluid(totalOxidizer);
+        controller.fuelDrainAccumulator = fuelRemainder;
+        controller.oxidizerDrainAccumulator = oxidizerRemainder;
+        for (RocketThrusterBlockEntity t : members) {
+            t.setTopologyReady(true);
+            t.topologyChanged();
         }
         controller.calculateObstruction(level, origin, facing);
     }
 
+    private static boolean canPool(FluidStack pool, FluidStack addition, int capacity) {
+        return (pool.isEmpty() || addition.isEmpty() || FluidStack.isSameFluidSameComponents(pool, addition))
+                && (long) pool.getAmount() + addition.getAmount() <= capacity;
+    }
+
     public void disassembleMulti() {
-        if (!isController() || !isMultiblock() || level == null) return;
+        if (!isController() || !isMultiblock() || level == null || level.isClientSide) return;
         int size = width;
-        BlockPos origin = worldPosition;
-
-        FluidStack fuelPool = FluidStack.EMPTY;
-        if (tank != null) {
-            fuelPool = tank.getPrimaryHandler().getFluid().copy();
-            tank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
-            tank.getPrimaryHandler().setCapacity(getBaseTankCapacityMb());
+        List<RocketThrusterBlockEntity> members = new ArrayList<>();
+        members.add(this);
+        // Only touch loaded cells that still claim THIS controller. Missing cells recover
+        // individually on their next tick; never load chunks or modify a neighbouring cube.
+        for (int x = 0; x < size; x++) for (int y = 0; y < size; y++) for (int z = 0; z < size; z++) {
+            BlockPos pos = worldPosition.offset(x, y, z);
+            if (pos.equals(worldPosition) || !isCellLoaded(pos) || !sameSubLevel(pos)) continue;
+            net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
+            if (be instanceof RocketThrusterBlockEntity t && t.getClass() == getClass()
+                    && t.width == size && worldPosition.equals(t.controllerPos)) members.add(t);
         }
-
-        FluidStack oxidizerPool = FluidStack.EMPTY;
-        if (oxidizerTank != null) {
-            oxidizerPool = oxidizerTank.getPrimaryHandler().getFluid().copy();
-            oxidizerTank.getPrimaryHandler().setFluid(FluidStack.EMPTY);
-            oxidizerTank.getPrimaryHandler().setCapacity(getBaseTankCapacityMb());
+        // Fill only accepted amounts. The source retains any incompatible or excess fluid,
+        // including components, instead of silently discarding a leftover pool.
+        for (RocketThrusterBlockEntity t : members) {
+            if (t == this) continue;
+            redistributeTank(tank, t.tank);
+            redistributeTank(oxidizerTank, t.oxidizerTank);
         }
-
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
-                    if (!(be instanceof RocketThrusterBlockEntity t)) continue;
-                    if (t.tank != null && !fuelPool.isEmpty()) {
-                        int take = Math.min(getBaseTankCapacityMb(), fuelPool.getAmount());
-                        FluidStack slice = new FluidStack(fuelPool.getFluid(), take);
-                        t.tank.getPrimaryHandler().fill(slice, IFluidHandler.FluidAction.EXECUTE);
-                        fuelPool.shrink(take);
-                    }
-                    if (t.oxidizerTank != null && !oxidizerPool.isEmpty()) {
-                        int take = Math.min(getBaseTankCapacityMb(), oxidizerPool.getAmount());
-                        FluidStack slice = new FluidStack(oxidizerPool.getFluid(), take);
-                        t.oxidizerTank.getPrimaryHandler().fill(slice, IFluidHandler.FluidAction.EXECUTE);
-                        oxidizerPool.shrink(take);
-                    }
-                    t.controllerPos = null;
-                    t.width = 1;
-                    t.updateConnectivity = true;
-                    t.isThrustDirty = true;
-                    t.thrusterData.setThrust(0);
-                    BlockState liveState = SimulatedThrustAdapter.getBlockStateSafe(level, pos);
-                    if (liveState.hasProperty(ThrusterBlock.MULTIBLOCK)
-                            && liveState.getValue(ThrusterBlock.MULTIBLOCK)) {
-                        level.setBlock(pos, liveState.setValue(ThrusterBlock.MULTIBLOCK, false), Block.UPDATE_CLIENTS);
-                    }
-                    t.setChanged();
-                    t.notifyUpdate();
-                }
-            }
+        for (RocketThrusterBlockEntity t : members) {
+            t.resetMultiblockForRebuild();
+            t.disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
         }
+    }
+
+    private void redistributeTank(SmartFluidTankBehaviour source, SmartFluidTankBehaviour target) {
+        if (source == null || target == null) return;
+        FluidStack fluid = source.getPrimaryHandler().getFluid();
+        if (fluid.isEmpty()) return;
+        int room = Math.max(0, getBaseTankCapacityMb() - target.getPrimaryHandler().getFluidAmount());
+        if (room == 0) return;
+        FluidStack offered = fluid.copy();
+        offered.setAmount(Math.min(room, fluid.getAmount()));
+        int accepted = target.getPrimaryHandler().fill(offered, IFluidHandler.FluidAction.EXECUTE);
+        if (accepted > 0) source.getPrimaryHandler().drain(accepted, IFluidHandler.FluidAction.EXECUTE);
     }
 
     private static FluidStack mergeFluid(FluidStack pool, FluidStack addition) {
@@ -308,7 +422,8 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     public IFluidHandler getFluidHandler(Direction side) {
         RocketThrusterBlockEntity ctrl = isController() ? this : getControllerBE();
-        if (ctrl == null) return null;
+        if (ctrl == null || ctrl.tank == null || (level != null && !level.isClientSide
+                && (!topologyReady || !ctrl.topologyReady))) return null;
 
         IFluidHandler fuel = ctrl.tank.getPrimaryHandler();
         IFluidHandler ox = (ctrl.oxidizerTank != null) ? ctrl.oxidizerTank.getPrimaryHandler() : null;
@@ -357,28 +472,18 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Override
     public void afterMove(ServerLevel oldLevel, ServerLevel newLevel, BlockState state, BlockPos oldPos, BlockPos newPos) {
-        super.afterMove(oldLevel, newLevel, state, oldPos, newPos);
-        // On any assembly/disassembly event, wipe this block's multiblock state so that
-        // tryAssemble() can rebuild it cleanly once all blocks have settled in their new
-        // positions. Attempting to translate controllerPos through rotation doesn't work
-        // because rotation changes relative offsets between members.
-        if (isMultiblock()) {
-            width = 1;
-            controllerPos = null;
-            updateConnectivity = true;
-            isThrustDirty = true;
-            setChanged();
-        }
-        // Grace period: delay validation and reassembly until after all blocks have been
-        // moved. Each afterMove call resets the counter, so the final afterMove determines
-        // when reassembly actually runs.
+        // Relative offsets in copied NBT are not rotated by every schematic/move path.
+        // Retain local tank contents (even an old controller's whole cube tank).
+        resetMultiblockForRebuild();
         disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
+        connectivityTicks = 0;
+        super.afterMove(oldLevel, newLevel, state, oldPos, newPos);
     }
 
     @Override
     public void updateThrust(BlockState currentBlockState) {
-        if (!isController()) {
-            isThrustDirty = false;
+        if (!topologyReady || !isController()) {
+            stopThrustForRebuild();
             return;
         }
         if (isMultiblock()) {
@@ -650,7 +755,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Override
     public void sable$physicsTick(final dev.ryanhcode.sable.sublevel.ServerSubLevel subLevel, final dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle handle, final double timeStep) {
-        if (isMultiblock() && !isController()) return;
+        if (!topologyReady || (isMultiblock() && !isController())) return;
         if (isMultiblock()) {
             float thrust = getCurrentThrust();
             if (thrust <= 0.0f || !Float.isFinite(thrust)) return;
@@ -747,7 +852,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
 
     @Override
     protected boolean isWorking() {
-        return validFluid() && validOxidizer();
+        return (level == null || level.isClientSide || topologyReady) && validFluid() && validOxidizer();
     }
 
     @Override
@@ -835,27 +940,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     }
 
     private boolean isValidFormedCube(BlockPos origin, int size, Direction facing) {
-        if (level == null) return false;
-        Block expectedBlock = getBlockState().getBlock();
-        Class<?> expectedType = getClass();
-        for (int x = 0; x < size; x++) {
-            for (int y = 0; y < size; y++) {
-                for (int z = 0; z < size; z++) {
-                    BlockPos pos = origin.offset(x, y, z);
-                    BlockState state = SimulatedThrustAdapter.getBlockStateSafe(level, pos);
-                    if (!state.is(expectedBlock)) return false;
-                    if (!state.hasProperty(AbstractThrusterBlock.FACING) || state.getValue(AbstractThrusterBlock.FACING) != facing)
-                        return false;
-                    net.minecraft.world.level.block.entity.BlockEntity be = SimulatedThrustAdapter.getBlockEntitySafe(level, pos);
-                    if (!(be instanceof RocketThrusterBlockEntity t)) return false;
-                    if (t.getClass() != expectedType) return false;
-                    RocketThrusterBlockEntity ctrl = t.getControllerBE();
-                    if (ctrl == null || ctrl != this) return false;
-                    if (t.width != size) return false;
-                }
-            }
-        }
-        return true;
+        return inspectFormedCube(origin, size, facing) == CubeStatus.VALID;
     }
 
     @Override
@@ -1018,7 +1103,7 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     public FluidStack fluidStack() {
         RocketThrusterBlockEntity ctrl = isController() ? this : getControllerBE();
         if (ctrl == null) ctrl = this;
-        return ctrl.tank.getPrimaryHandler().getFluid();
+        return ctrl.tank == null ? FluidStack.EMPTY : ctrl.tank.getPrimaryHandler().getFluid();
     }
 
     public boolean validFluid() {
@@ -1085,6 +1170,10 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
             compound.put("OxidizerTankSync", oxidizerTank.getPrimaryHandler().getFluid().saveOptional(registries));
         }
 
+        compound.remove("ControllerOffX");
+        compound.remove("ControllerOffY");
+        compound.remove("ControllerOffZ");
+        compound.remove("UpdateConnectivity");
         if (controllerPos != null) {
             compound.putInt("ControllerOffX", controllerPos.getX() - worldPosition.getX());
             compound.putInt("ControllerOffY", controllerPos.getY() - worldPosition.getY());
@@ -1098,35 +1187,42 @@ public class RocketThrusterBlockEntity extends AbstractThrusterBlockEntity {
     @Override
     protected void read(CompoundTag compound, net.minecraft.core.HolderLookup.Provider registries, boolean clientPacket) {
         super.read(compound, registries, clientPacket);
-        width = Math.max(1, compound.getInt("Width"));
+        width = Math.max(1, Math.min(MAX_WIDTH, compound.getInt("Width")));
+        controllerPos = compound.contains("ControllerOffX") && compound.contains("ControllerOffY")
+                && compound.contains("ControllerOffZ") ? worldPosition.offset(
+                compound.getInt("ControllerOffX"), compound.getInt("ControllerOffY"),
+                compound.getInt("ControllerOffZ")) : null;
         lastConsumedMbPerTick = compound.getDouble("LastConsumedMbPerTick");
         lastOxidizerConsumedMbPerTick = compound.getDouble("LastOxidizerConsumedMbPerTick");
         fuelDrainAccumulator = compound.getDouble("FuelDrainAccumulator");
         oxidizerDrainAccumulator = compound.getDouble("OxidizerDrainAccumulator");
 
-        // Update capacity before loading fluid to avoid truncation
-        if (isController() && isMultiblock()) {
-            int cap = getBaseTankCapacityMb() * width * width * width;
-            if (tank != null) tank.getPrimaryHandler().setCapacity(cap);
-            if (oxidizerTank != null) oxidizerTank.getPrimaryHandler().setCapacity(cap);
+        // Restore owner/width BEFORE choosing capacity, including on repeated client packets.
+        // Explicit sync stacks keep the whole fluid even when stale NBT describes a single.
+        restoreTank(tank, "FuelTankSync", compound, registries);
+        restoreTank(oxidizerTank, "OxidizerTankSync", compound, registries);
+        boundingBox = null;
+        multiblockBoundingBox = null;
+        if (!clientPacket) {
+            setTopologyReady(false);
+            updateConnectivity = true; // Never trust a saved false one-shot retry flag.
+            disassemblyCooldown = DISASSEMBLY_GRACE_TICKS;
+            connectivityTicks = 0;
+            invalidTopologyChecks = 0;
+            thrusterData.setThrust(0);
+            isThrustDirty = true;
         }
+    }
 
-        if (tank != null && compound.contains("FuelTankSync")) {
-            tank.getPrimaryHandler().setFluid(FluidStack.parseOptional(registries, compound.getCompound("FuelTankSync")));
-        }
-        if (oxidizerTank != null && compound.contains("OxidizerTankSync")) {
-            oxidizerTank.getPrimaryHandler().setFluid(FluidStack.parseOptional(registries, compound.getCompound("OxidizerTankSync")));
-        }
-
-        if (compound.contains("ControllerOffX")) {
-            controllerPos = worldPosition.offset(
-                    compound.getInt("ControllerOffX"),
-                    compound.getInt("ControllerOffY"),
-                    compound.getInt("ControllerOffZ"));
-        } else {
-            controllerPos = null;
-        }
-        updateConnectivity = compound.getBoolean("UpdateConnectivity");
+    private void restoreTank(SmartFluidTankBehaviour behaviour, String key, CompoundTag compound,
+                             net.minecraft.core.HolderLookup.Provider registries) {
+        if (behaviour == null) return;
+        FluidStack fluid = compound.contains(key)
+                ? FluidStack.parseOptional(registries, compound.getCompound(key))
+                : behaviour.getPrimaryHandler().getFluid().copy();
+        int capacity = getBaseTankCapacityMb() * (isController() ? width * width * width : 1);
+        behaviour.getPrimaryHandler().setCapacity(Math.max(capacity, fluid.getAmount()));
+        behaviour.getPrimaryHandler().setFluid(fluid);
     }
 
     protected int getBaseTankCapacityMb() {
