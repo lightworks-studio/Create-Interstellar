@@ -607,6 +607,29 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
         return newRocket;
     }
 
+    public record WarpSeat(@Nullable Integer seat, @Nullable Vec3 offset) {}
+
+    public WarpSeat captureWarpSeat(Entity passenger) {
+        return new WarpSeat(contraption.getSeatMapping().get(passenger.getUUID()), virtualSeats.get(passenger.getUUID()));
+    }
+
+    public boolean restoreWarpSeat(Entity passenger, WarpSeat saved) {
+        if (saved.seat() != null) {
+            Integer currentSeat = contraption.getSeatMapping().get(passenger.getUUID());
+            if (passenger.getVehicle() == this && saved.seat().equals(currentSeat)) return true;
+            if (passenger.isPassenger()) passenger.stopRiding();
+            addSittingPassenger(passenger, saved.seat());
+            return passenger.getVehicle() == this && saved.seat().equals(contraption.getSeatMapping().get(passenger.getUUID()));
+        }
+        if (saved.offset() != null) {
+            if (passenger.getVehicle() != this && !passenger.startRiding(this, true)) return false;
+            virtualSeats.put(passenger.getUUID(), saved.offset());
+            CatnipServices.NETWORK.sendToClientsTrackingEntity(this, new RocketSeatsPacket(getId(), virtualSeats));
+            return true;
+        }
+        return passenger.getVehicle() == this || passenger.startRiding(this, true);
+    }
+
     @Override
     public Vec3 getDismountLocationForPassenger(LivingEntity entityLiving) {
         return super.getDismountLocationForPassenger(entityLiving);

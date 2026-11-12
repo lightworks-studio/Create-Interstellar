@@ -40,5 +40,5 @@ Block entities that implement `IHaveGoggleInformation` add tank/status lines in
 - `docs/architecture.md` — this file.
 - `docs/modules/` — per-subsystem deep dives (e.g. [`modules/thruster.md`](modules/thruster.md)).
  - `docs/decisions/` — short architecture decision records.
- - `docs/libraries/` — notes on external library APIs we rely on (e.g. [`libraries/sable.md`](libraries/sable.md)).
+ - `docs/libraries/` — notes grouped by external library, including [Sable physics](libraries/sable/physics.md) and [Dimensional-Sable warping](libraries/dimensional-sable/warping.md).
  - `docs/thruster_code.md` — implementation tracker for the thruster unification work.

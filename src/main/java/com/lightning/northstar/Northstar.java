@@ -18,7 +18,7 @@ import com.lightning.northstar.planet.data.orbit.OrbitProvider;
 import com.lightning.northstar.planet.data.render.PlanetSpriteRenderer;
 import com.lightning.northstar.world.gen.feature.trunkplacers.NorthstarTrunkPlacerTypes;
 import com.lightning.northstar.world.oxygen.DefaultOxygenConsumers;
-import com.lightning.northstar.util.DimensionalTeleportUtils;
+import com.lightning.northstar.util.SublevelDimensionalTeleportUtils;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.KineticStats;
@@ -159,7 +159,7 @@ public class Northstar {
 
         @SubscribeEvent
         public static void processDeferredWarps(ServerTickEvent.Post event) {
-            DimensionalTeleportUtils.processDeferredWarps();
+            SublevelDimensionalTeleportUtils.processDeferredWarps();
         }
 
         @SubscribeEvent

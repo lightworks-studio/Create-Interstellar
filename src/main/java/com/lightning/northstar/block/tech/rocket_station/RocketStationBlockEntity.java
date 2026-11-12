@@ -5,7 +5,7 @@ import com.lightning.northstar.contraption.rocket.RocketContraption;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
 import com.lightning.northstar.contraption.rocket.RocketDestination;
 import com.lightning.northstar.util.BetterSimpleContainer;
-import com.lightning.northstar.util.DimensionalTeleportUtils;
+import com.lightning.northstar.util.SublevelDimensionalTeleportUtils;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.contraptions.AssemblyException;
@@ -23,7 +23,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.Containers;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -42,7 +41,7 @@ public class RocketStationBlockEntity extends SmartBlockEntity
     public AssemblyException lastException;
     public RocketDestination destination;
     public long lastTeleportTime;
-    DimensionalTeleportUtils.TeleportProperties teleportProperties = null;
+    SublevelDimensionalTeleportUtils.TeleportProperties teleportProperties = null;
     private boolean teleportQueued;
 
 
@@ -52,10 +51,10 @@ public class RocketStationBlockEntity extends SmartBlockEntity
                 subLevel.latestLinearVelocity.y > 0.015
                 && subLevel.logicalPose().position().y > NorthstarConfigs.server().atmosphereTeleportHeight.get()) {
             lastTeleportTime = 0;
-            teleportProperties = new DimensionalTeleportUtils.TeleportProperties(
+            teleportProperties = new SublevelDimensionalTeleportUtils.TeleportProperties(
                     new RocketDestination(destination.dim(), new BlockPos(0, NorthstarConfigs.server().atmosphereTeleportHeight.get(), 0), null),
                     subLevel, handle, true);
-            DimensionalTeleportUtils.enqueueWarp(teleportProperties);
+            SublevelDimensionalTeleportUtils.enqueueWarp(teleportProperties);
         }
         lastTeleportTime++;
 
