@@ -3,8 +3,18 @@ package com.lightning.northstar.util;
 import com.lightning.northstar.config.NorthstarConfigs;
 import com.lightning.northstar.contraption.rocket.RocketDestination;
 import com.lightning.northstar.contraption.rocket.RocketContraptionEntity;
-import com.simibubi.create.content.contraptions.actors.seat.SeatEntity;
+import com.lightning.northstar.mixin.accessor.ControlsContextAccessor;
+import com.lightning.northstar.mixin.accessor.ControlsServerHandlerAccessor;
+import com.lightning.northstar.mixin.accessor.LinkedControllerServerHandlerAccessor;
+import com.lightning.northstar.network.packet.ForceContraptionControlPacket;
+import com.lightning.northstar.network.packet.ForceLinkedControllerPacket;
+import com.simibubi.create.Create;
+import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.actors.seat.SeatBlock;
+import com.simibubi.create.content.contraptions.actors.seat.SeatEntity;
+import com.simibubi.create.content.contraptions.actors.trainControls.ControlsInteractionBehaviour;
+import com.simibubi.create.content.redstone.link.IRedstoneLinkable;
+import com.simibubi.create.content.redstone.link.controller.LecternControllerBlockEntity;
 import dev.egg.dimensionalsable.SubLevelWarper;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.physics.constraint.FixedConstraintConfiguration;
@@ -16,6 +26,7 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
+import net.createmod.catnip.platform.CatnipServices;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
@@ -24,13 +35,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +84,8 @@ public class SublevelDimensionalTeleportUtils {
     private static final int MIN_HOLD_TICKS = 40;
     private static final int MAX_HOLD_TICKS = 100;
     private static final int RECOVERY_ATTEMPTS = 40;
+    /** Extra packets so a control link survives the destination entity/chunk being sent to the client. */
+    private static final int CONTROL_FORCE_REPEATS = 5;
     /**
      * How many consecutive ticks a velocity phase may make no measurable progress before it is
      * force-completed. Some force sources (notably Sable's built-in floating-block and
@@ -95,6 +112,26 @@ public class SublevelDimensionalTeleportUtils {
     }
 
     private record InhabitantRecovery(ServerLevel level, UUID ship, UUID inhabitant, Vec3 localPosition, int attempts) {
+    }
+
+    /**
+     * A player's control target captured before a warp. Targets are resolved through Create's
+     * central control bookkeeping, so addon contraption-control blocks are covered without
+     * naming them here.
+     */
+    private interface ControlLink {
+    }
+
+    private record ContraptionControl(UUID player, UUID contraption, BlockPos controlPos) implements ControlLink {
+    }
+
+    private record LecternControl(UUID player, UUID ship, Vec3 plotOffset) implements ControlLink {
+    }
+
+    private record ItemControl(UUID player, UUID ship) implements ControlLink {
+    }
+
+    private record PendingControl(ServerLevel level, ControlLink link, int attempts, int repeats) {
     }
 
     /** A destination body held in place by a fixed constraint while entities are recovered. */
@@ -143,6 +180,7 @@ public class SublevelDimensionalTeleportUtils {
     // ---------------------------------------------------------------------------------------------
 
     private static final Queue<PendingSeat> PENDING_SEATS = new ConcurrentLinkedQueue<>();
+    private static final Queue<PendingControl> PENDING_CONTROLS = new ConcurrentLinkedQueue<>();
     private static final Queue<InhabitantRecovery> INHABITANT_RECOVERY = new ConcurrentLinkedQueue<>();
     private static final Queue<RecoveryHold> HOLDS = new ConcurrentLinkedQueue<>();
     private static final Queue<VelocityRamp> VELOCITY_RAMPS = new ConcurrentLinkedQueue<>();
@@ -221,6 +259,7 @@ public class SublevelDimensionalTeleportUtils {
     /** Clears all per-server warp state so stale holds or flags cannot leak between worlds. */
     public static void reset() {
         PENDING_SEATS.clear();
+        PENDING_CONTROLS.clear();
         INHABITANT_RECOVERY.clear();
         HOLDS.clear();
         VELOCITY_RAMPS.clear();
@@ -262,6 +301,7 @@ public class SublevelDimensionalTeleportUtils {
     /** Runs once per server tick after the world has ticked. */
     public static void processDeferredWarps() {
         recoverInhabitants();
+        retryControls();
         retrySeats();
         updateHolds();
         tickVelocityRamps();
@@ -478,6 +518,7 @@ public class SublevelDimensionalTeleportUtils {
         Vector3d destinationPosition = computeDestinationPosition(properties);
         Quaterniond rotation = computeWarpRotation(properties);
         Map<UUID, SavedVelocity> rotatedTargets = rotateTargets(targets, rotation);
+        List<ControlLink> controlLinks = captureControlLinks(ship, frozen, inhabitants);
 
         int warped = SubLevelWarper.warpConnectedSubLevels(ship, destination, destinationPosition, rotation);
         LOGGER.info("[ROCKET WARP RESULT] ship={} warped={} expectedInhabitants={}",
@@ -496,6 +537,8 @@ public class SublevelDimensionalTeleportUtils {
                 destinationPosition, rotation);
         scheduleInhabitantRecovery(properties, inhabitants, destination);
         restoreSeats(inhabitants, destination, transferred);
+        clearSourceControlState(source, controlLinks);
+        scheduleControlRecovery(destination, controlLinks);
     }
 
     private static Vector3d computeDestinationPosition(TeleportProperties properties) {
@@ -755,6 +798,328 @@ public class SublevelDimensionalTeleportUtils {
                         passenger.getUUID(), vehicle.getUUID());
             }
         }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Phase 3.5 — re-establish player control links
+    // ---------------------------------------------------------------------------------------------
+
+    /**
+     * Captures every player that is controlling something on the warping ship. The capture is
+     * driven by Create's central bookkeeping instead of enumerating block types:
+     * {@code ControlsServerHandler} covers every contraption-control block, scanning the ship's
+     * lecterns covers every linked-controller lectern, and {@code LinkedControllerServerHandler}
+     * covers a controller held in the player's hand.
+     */
+    private static List<ControlLink> captureControlLinks(ServerSubLevel ship, List<FrozenBody> frozen,
+                                                         List<Inhabitant> inhabitants) {
+        ServerLevel source = ship.getLevel();
+        List<ServerSubLevel> group = new ArrayList<>();
+        Set<UUID> groupIds = new HashSet<>();
+        for (FrozenBody body : frozen) {
+            group.add(body.subLevel());
+            groupIds.add(body.subLevel().getUniqueId());
+        }
+
+        Set<UUID> players = new HashSet<>();
+        for (Inhabitant inhabitant : inhabitants) {
+            if (inhabitant.entity() instanceof Player player) {
+                players.add(player.getUUID());
+            }
+        }
+
+        List<ControlLink> links = new ArrayList<>();
+        Set<UUID> contraptionPlayers = new HashSet<>();
+
+        // Active contraption controls: Create already knows the exact controls block position.
+        Map<UUID, Object> received = ControlsServerHandlerAccessor.northstar$getReceivedInputs().get(source);
+        for (Map.Entry<UUID, Object> entry : received.entrySet()) {
+            if (!(entry.getValue() instanceof ControlsContextAccessor context)) {
+                continue;
+            }
+            AbstractContraptionEntity contraption = context.northstar$getEntity();
+            if (contraption == null || contraption.isRemoved() || !isPartOfGroup(contraption, groupIds)) {
+                continue;
+            }
+            links.add(new ContraptionControl(entry.getKey(), contraption.getUUID(),
+                    context.northstar$getControlsLocalPos()));
+            contraptionPlayers.add(entry.getKey());
+        }
+
+        // Idle contraption controls: the input map drops empty contexts, but the contraption still
+        // remembers which player is controlling it. Resolve the controls block from the contraption.
+        for (ServerSubLevel member : group) {
+            for (Entity entity : source.getEntities(null, member.boundingBox().toMojang().inflate(1.0d))) {
+                if (!(entity instanceof AbstractContraptionEntity contraption) || contraption.isRemoved()) {
+                    continue;
+                }
+                UUID playerId = contraption.getControllingPlayer().orElse(null);
+                if (playerId == null || contraptionPlayers.contains(playerId)
+                        || !isPartOfGroup(contraption, groupIds)) {
+                    continue;
+                }
+                BlockPos controlsPos = findControlPosition(source, contraption, playerId);
+                if (controlsPos == null) {
+                    LOGGER.warn("[ROCKET CONTROL CAPTURE SKIPPED] player={} contraption={} reason=no_controls_block",
+                            playerId, contraption.getUUID());
+                    continue;
+                }
+                links.add(new ContraptionControl(playerId, contraption.getUUID(), controlsPos));
+                contraptionPlayers.add(playerId);
+            }
+        }
+
+        // Lectern controllers: every rebuilt lectern lives in the ship's plot, so store the
+        // lectern position relative to the plot center instead of the old world position.
+        Set<UUID> lecternUsers = new HashSet<>();
+        for (ServerSubLevel member : group) {
+            for (var holder : member.getPlot().getLoadedChunks()) {
+                for (BlockEntity blockEntity : holder.getChunk().getBlockEntities().values()) {
+                    if (!(blockEntity instanceof LecternControllerBlockEntity lectern)) {
+                        continue;
+                    }
+                    for (ServerPlayer player : source.players()) {
+                        if (!lectern.isUsedBy(player)) {
+                            continue;
+                        }
+                        Vec3 offset = Vec3.atLowerCornerOf(blockEntity.getBlockPos())
+                                .subtract(Vec3.atLowerCornerOf(member.getPlot().getCenterBlock()));
+                        links.add(new LecternControl(player.getUUID(), member.getUniqueId(), offset));
+                        lecternUsers.add(player.getUUID());
+                    }
+                }
+            }
+        }
+
+        // Held linked controllers: Create tracks their active inputs per player. Lectern users are
+        // handled above, so anything left that belongs to a captured player is the held item.
+        Map<UUID, Object> linkedInputs = LinkedControllerServerHandlerAccessor.northstar$getReceivedInputs().get(source);
+        for (UUID playerId : linkedInputs.keySet()) {
+            if (!lecternUsers.contains(playerId) && players.contains(playerId)) {
+                links.add(new ItemControl(playerId, ship.getUniqueId()));
+            }
+        }
+
+        LOGGER.info("[ROCKET CONTROL CAPTURE] ship={} links={} contraptions={} lecterns={} items={}",
+                ship.getUniqueId(), links.size(),
+                links.stream().filter(ContraptionControl.class::isInstance).count(),
+                links.stream().filter(LecternControl.class::isInstance).count(),
+                links.stream().filter(ItemControl.class::isInstance).count());
+        return List.copyOf(links);
+    }
+
+    private static boolean isPartOfGroup(Entity entity, Set<UUID> groupIds) {
+        var tracked = Sable.HELPER.getTrackingSubLevel(entity);
+        if (tracked != null && groupIds.contains(tracked.getUniqueId())) {
+            return true;
+        }
+        var containing = Sable.HELPER.getContaining(entity);
+        return containing != null && groupIds.contains(containing.getUniqueId());
+    }
+
+    private static BlockPos findControlPosition(ServerLevel source, AbstractContraptionEntity contraption,
+                                                UUID playerId) {
+        if (contraption instanceof RocketContraptionEntity rocket) {
+            BlockPos lastControlPos = rocket.getLastControlPos();
+            if (lastControlPos != null) {
+                return lastControlPos;
+            }
+        }
+
+        List<BlockPos> candidates = new ArrayList<>();
+        for (Map.Entry<BlockPos, ?> entry : contraption.getContraption().getInteractors().entrySet()) {
+            if (entry.getValue() instanceof ControlsInteractionBehaviour) {
+                candidates.add(entry.getKey());
+            }
+        }
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+
+        Player player = source.getPlayerByUUID(playerId);
+        if (player == null) {
+            return candidates.get(0);
+        }
+        BlockPos nearest = candidates.get(0);
+        double nearestDistance = Double.MAX_VALUE;
+        for (BlockPos candidate : candidates) {
+            double distance = contraption.toGlobalVector(Vec3.atCenterOf(candidate), 1.0f)
+                    .distanceToSqr(player.position());
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = candidate;
+            }
+        }
+        return nearest;
+    }
+
+    private static void scheduleControlRecovery(ServerLevel destination, List<ControlLink> links) {
+        for (ControlLink link : links) {
+            PENDING_CONTROLS.add(new PendingControl(destination, link, RECOVERY_ATTEMPTS, CONTROL_FORCE_REPEATS));
+        }
+    }
+
+    private static void retryControls() {
+        int count = PENDING_CONTROLS.size();
+        for (int i = 0; i < count; i++) {
+            PendingControl pending = PENDING_CONTROLS.poll();
+            if (pending == null) {
+                break;
+            }
+            boolean firstAttempt = pending.repeats() == CONTROL_FORCE_REPEATS;
+            if (restoreControl(pending.level(), pending.link(), firstAttempt)) {
+                if (firstAttempt) {
+                    LOGGER.info("[ROCKET CONTROL RESTORED] {}", describeControl(pending.link()));
+                }
+                if (pending.repeats() > 1) {
+                    PENDING_CONTROLS.add(new PendingControl(pending.level(), pending.link(),
+                            pending.attempts(), pending.repeats() - 1));
+                }
+                continue;
+            }
+            if (pending.attempts() > 1) {
+                PENDING_CONTROLS.add(new PendingControl(pending.level(), pending.link(),
+                        pending.attempts() - 1, pending.repeats()));
+            } else {
+                LOGGER.warn("[ROCKET CONTROL RECOVERY FAILED] {}", describeControl(pending.link()));
+            }
+        }
+    }
+
+    private static boolean restoreControl(ServerLevel level, ControlLink link, boolean log) {
+        if (link instanceof ContraptionControl control) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(control.player());
+            if (player == null || player.level() != level) {
+                return false;
+            }
+            AbstractContraptionEntity contraption = findContraption(level, control);
+            if (contraption == null) {
+                return false;
+            }
+            contraption.setControllingPlayer(control.player());
+            CatnipServices.NETWORK.sendToClient(player,
+                    new ForceContraptionControlPacket(contraption.getId(), control.controlPos()));
+            return true;
+        }
+
+        if (link instanceof LecternControl control) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(control.player());
+            if (player == null || player.level() != level) {
+                return false;
+            }
+            var container = SubLevelContainer.getContainer(level);
+            var ship = container == null ? null : container.getSubLevel(control.ship());
+            if (ship == null || ship.isRemoved()) {
+                return false;
+            }
+            Vec3 position = Vec3.atLowerCornerOf(ship.getPlot().getCenterBlock()).add(control.plotOffset());
+            BlockPos lecternPos = BlockPos.containing(position);
+            if (!(level.getBlockEntity(lecternPos) instanceof LecternControllerBlockEntity lectern)) {
+                return false;
+            }
+            if (lectern.hasUser() && !lectern.isUsedBy(player)) {
+                if (log) {
+                    LOGGER.warn("[ROCKET CONTROL RECOVERY SKIPPED] player={} lectern={} reason=used_by_other",
+                            control.player(), lecternPos);
+                }
+                return true;
+            }
+            if (!lectern.isUsedBy(player)) {
+                // The old lectern marker survives on the player, but the rebuilt lectern does not
+                // know them yet. Clear it so tryStartUsing() can claim the new lectern.
+                player.getPersistentData().remove("IsUsingLecternController");
+                lectern.tryStartUsing(player);
+            }
+            if (!lectern.isUsedBy(player)) {
+                return false;
+            }
+            CatnipServices.NETWORK.sendToClient(player, new ForceLinkedControllerPacket(lecternPos));
+            return true;
+        }
+
+        if (link instanceof ItemControl control) {
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(control.player());
+            if (player == null || player.level() != level) {
+                return false;
+            }
+            CatnipServices.NETWORK.sendToClient(player, new ForceLinkedControllerPacket(null));
+            return true;
+        }
+
+        return true;
+    }
+
+    private static AbstractContraptionEntity findContraption(ServerLevel level, ContraptionControl control) {
+        Entity entity = level.getEntity(control.contraption());
+        if (entity == null) {
+            entity = findEntity(level, control.contraption());
+        }
+        if (entity instanceof AbstractContraptionEntity contraption) {
+            return contraption;
+        }
+        // Some transfer paths recreate the contraption entity. Fall back to a contraption that
+        // still remembers this player.
+        for (Entity candidate : level.getEntities().getAll()) {
+            if (candidate instanceof AbstractContraptionEntity contraption
+                    && contraption.getControllingPlayer().orElse(null) != null
+                    && contraption.getControllingPlayer().orElse(null).equals(control.player())) {
+                return contraption;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Removes the source-level input entries after the warp. Otherwise the old entries keep
+     * driving the rebuilt blocks until Create's timeout expires, and a held controller can keep
+     * sending inputs for the previous plot coordinate.
+     */
+    private static void clearSourceControlState(ServerLevel source, List<ControlLink> links) {
+        if (links.isEmpty()) {
+            return;
+        }
+        Map<UUID, Object> controls = ControlsServerHandlerAccessor.northstar$getReceivedInputs().get(source);
+        Map<UUID, Object> linked = LinkedControllerServerHandlerAccessor.northstar$getReceivedInputs().get(source);
+        for (ControlLink link : links) {
+            UUID player = controlPlayer(link);
+            controls.remove(player);
+
+            // Removing the map entry alone would leave the ManualFrequencyEntry in the redstone
+            // link network (nothing would tick it out), so unregister each tracked input too.
+            Object removed = linked.remove(player);
+            if (removed instanceof Collection<?> entries) {
+                for (Object entry : entries) {
+                    if (entry instanceof IRedstoneLinkable linkable) {
+                        Create.REDSTONE_LINK_NETWORK_HANDLER.removeFromNetwork(source, linkable);
+                    }
+                }
+            }
+        }
+    }
+
+    private static UUID controlPlayer(ControlLink link) {
+        if (link instanceof ContraptionControl control) {
+            return control.player();
+        }
+        if (link instanceof LecternControl control) {
+            return control.player();
+        }
+        return ((ItemControl) link).player();
+    }
+
+    private static String describeControl(ControlLink link) {
+        if (link instanceof ContraptionControl control) {
+            return "contraption player=" + control.player() + " entity=" + control.contraption()
+                    + " pos=" + control.controlPos();
+        }
+        if (link instanceof LecternControl control) {
+            return "lectern player=" + control.player() + " ship=" + control.ship()
+                    + " offset=" + control.plotOffset();
+        }
+        return "item player=" + ((ItemControl) link).player();
     }
 
     // ---------------------------------------------------------------------------------------------

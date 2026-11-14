@@ -165,6 +165,41 @@ the destination ship's current pose. Mounted entities use seat restoration.
 Sneaking cancels positional recovery. The manifest cannot recover an entity
 that was never captured, or recreate a removed entity.
 
+## Control-link recovery
+
+Players flying the ship keep their controls through the warp. Capture happens
+immediately before `SubLevelWarper.warpConnectedSubLevels`, and restoration is
+queued through the same deferred recovery loop as inhabitants and seats.
+
+Capture is generic rather than block-by-block:
+
+- `ControlsServerHandler.receivedInputs` supplies every active contraption
+  control, including the exact controls block position. Because the map drops
+  idle contexts, contraptions are also scanned for
+  `getControllingPlayer()`, and the controls block is resolved from the
+  contraption's `ControlsInteractionBehaviour` interactors (or the rocket's
+  last control position). This covers rocket, train and addon control blocks
+  without naming them.
+- Lectern users are found by scanning the plot's loaded block entities for
+  `LecternControllerBlockEntity` and testing `isUsedBy`. The lectern is stored
+  as an offset from the source plot center, because the destination plot keeps
+  its X/Z allocation but can change section Y.
+- `LinkedControllerServerHandler.receivedInputs` identifies a controller held
+  in the player's hand; lectern users are excluded from that path.
+
+After a successful warp the source-level input entries are cleared, and each
+link is retried for up to 40 ticks. A contraption link sets the destination
+entity's controlling player and sends `ForceContraptionControlPacket`, which
+first clears any stale client-side control marker. A lectern link locates the
+rebuilt lectern by plot offset, clears the player's old
+`IsUsingLecternController` marker if needed, calls `tryStartUsing`, and sends
+`ForceLinkedControllerPacket` with the lectern position. A held controller
+sends the same packet with no lectern position. Control packets are repeated
+for five ticks so they arrive after the destination entity or chunk is sent to
+the client. Diagnostics use `[ROCKET CONTROL CAPTURE]`,
+`[ROCKET CONTROL CAPTURE SKIPPED]`, `[ROCKET CONTROL RESTORED]`,
+`[ROCKET CONTROL RECOVERY SKIPPED]`, and `[ROCKET CONTROL RECOVERY FAILED]`.
+
 Console diagnostics use these prefixes: `[ROCKET BEFORE SUMMARY]` and
 `[ROCKET BEFORE]` list the capture manifest; `[ROCKET PLAYER CAPTURE AUDIT]`
 includes both selected and excluded source players; `[ROCKET AFTER

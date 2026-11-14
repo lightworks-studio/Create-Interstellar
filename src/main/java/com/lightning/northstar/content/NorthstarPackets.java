@@ -11,6 +11,7 @@ import com.lightning.northstar.contraption.rocket.packet.RocketDestinationPacket
 import com.lightning.northstar.contraption.rocket.packet.RocketSeatsPacket;
 import com.lightning.northstar.contraption.rocket.packet.RocketSyncPacket;
 import com.lightning.northstar.network.packet.ForceContraptionControlPacket;
+import com.lightning.northstar.network.packet.ForceLinkedControllerPacket;
 import com.lightning.northstar.network.packet.RelativeTeleportPacket;
 import com.lightning.northstar.network.packet.SpaceAtlasEditPacket;
 import net.createmod.catnip.net.base.BasePacketPayload;
@@ -33,6 +34,7 @@ public enum NorthstarPackets implements BasePacketPayload.PacketTypeProvider {
 
     // server to client
     FORCE_CONTRAPTION_CONTROL(ForceContraptionControlPacket.class, ForceContraptionControlPacket.STREAM_CODEC),
+    FORCE_LINKED_CONTROLLER(ForceLinkedControllerPacket.class, ForceLinkedControllerPacket.STREAM_CODEC),
     ROCKET_DESTINATION(RocketDestinationPacket.class, RocketDestinationPacket.STREAM_CODEC),
     ROCKET_SEATS(RocketSeatsPacket.class, RocketSeatsPacket.STREAM_CODEC),
     ROCKET_SYNC(RocketSyncPacket.class, RocketSyncPacket.STREAM_CODEC),
@@ -40,7 +42,7 @@ public enum NorthstarPackets implements BasePacketPayload.PacketTypeProvider {
     RELATIVE_TELEPORT(RelativeTeleportPacket.class, RelativeTeleportPacket.STREAM_CODEC),
     SYNC_THRUSTER_FUELS(SyncThrusterFuelsPacket.class, SyncThrusterFuelsPacket.STREAM_CODEC);
 
-    public static final int NETWORK_VERSION = 8;
+    public static final int NETWORK_VERSION = 9;
 
     private final CatnipPacketRegistry.PacketType<?> type;
 

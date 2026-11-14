@@ -10,7 +10,10 @@
   "mixins": [
     "MutableComponentMixin",
     "RegistryFileCodecMixin",
+    "accessor.ControlsContextAccessor",
+    "accessor.ControlsServerHandlerAccessor",
     "accessor.GroundPathNavigationAccessor",
+    "accessor.LinkedControllerServerHandlerAccessor",
     "accessor.NorthstarBuilderMixin$BiomeGenerationSettingsMixin",
     "accessor.NorthstarBuilderMixin$MobSpawnSettingsMixin",
     "accessor.NorthstarContraptionWorld",

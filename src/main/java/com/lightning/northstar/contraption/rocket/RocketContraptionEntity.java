@@ -470,7 +470,12 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
 
     @Override
     public boolean startControlling(BlockPos controlsLocalPos, @Nullable Player player) {
-        return player != null && !player.isSpectator() && getControllingPlayer().isEmpty();
+        if (player == null || player.isSpectator() || getControllingPlayer().isPresent()) {
+            return false;
+        }
+        lastControlPos = controlsLocalPos;
+        shouldSync = true;
+        return true;
     }
 
     @Override
@@ -943,6 +948,11 @@ public class RocketContraptionEntity extends AbstractContraptionEntity implement
     public Player getControllingPlayerInstance() {
         Optional<UUID> controlling = getControllingPlayer();
         return controlling.isPresent() ? level().getPlayerByUUID(controlling.get()) : null;
+    }
+
+    @Nullable
+    public BlockPos getLastControlPos() {
+        return lastControlPos;
     }
 
     public LaunchStatus getStatus() {

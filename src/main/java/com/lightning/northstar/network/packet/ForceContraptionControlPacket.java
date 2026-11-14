@@ -2,7 +2,6 @@ package com.lightning.northstar.network.packet;
 
 import com.lightning.northstar.content.NorthstarPackets;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
-import com.simibubi.create.content.contraptions.actors.trainControls.ControlsHandler;
 import io.netty.buffer.ByteBuf;
 import net.createmod.catnip.net.base.ClientboundPacketPayload;
 import net.minecraft.client.Minecraft;
@@ -30,11 +29,12 @@ public record ForceContraptionControlPacket(
     @OnlyIn(Dist.CLIENT)
     public void handle(LocalPlayer player) {
         if (Minecraft.getInstance().level.getEntity(entityId) instanceof AbstractContraptionEntity entity) {
-            // Click twice to stop controlling and recontrol if needed
-            if (entity.equals(ControlsHandler.getContraption()) && controlPos.equals(ControlsHandler.getControlsPos())) {
-                entity.handlePlayerInteraction(Minecraft.getInstance().player, controlPos, Direction.NORTH, InteractionHand.MAIN_HAND);
-            }
-            entity.handlePlayerInteraction(Minecraft.getInstance().player, controlPos, Direction.NORTH, InteractionHand.MAIN_HAND);
+            // After a dimension change the entity data can still name this player while the
+            // client-side ControlsHandler was reset. Clear the stale marker first, otherwise
+            // Create's interaction handler would early-return without restarting control.
+            entity.stopControlling(controlPos);
+            entity.handlePlayerInteraction(player, controlPos,
+                    Direction.NORTH, InteractionHand.MAIN_HAND);
         }
     }
 
